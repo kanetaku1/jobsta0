@@ -1,0 +1,35 @@
+.jobCard {
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  padding: 1rem;
+  box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.05);
+  background: #fff;
+  transition: box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.jobCard:hover {
+  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.10);
+}
+
+.jobDescription {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.jobLocation {
+  color: #4b5563;
+  margin-bottom: 0.5rem;
+}
+
+.jobWage {
+  color: #2563eb;
+  font-size: 1.125rem;
+  font-weight: bold;
+}
+
+.jobTitle {
+  color: #374151;
+  margin-top: 1rem;
+}
