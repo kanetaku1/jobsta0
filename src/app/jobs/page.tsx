@@ -1,5 +1,5 @@
+import { getJobsAll } from "@/utils/supabase/getData";
 import JobList from "./JobList";
-import { getJobs } from "./jobService";
 
 /**
  * ファイルパス: src/app/jobs/page.tsx
@@ -8,6 +8,6 @@ import { getJobs } from "./jobService";
 export const dynamic = 'force-dynamic';
 
 export default async function JobsPage() {
-    const jobs = await getJobs();
+    const jobs = await getJobsAll();
     return <JobList jobs={jobs} />;
 }

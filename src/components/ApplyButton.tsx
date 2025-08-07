@@ -1,14 +1,12 @@
-/*
- * ファイルパス: src/components/ApplyButton.tsx (新規作成)
- * 役割: 応募処理を実行するためのクライアントコンポーネント
- */
-import { useFormState, useFormStatus } from 'react-dom'
-import { apply } from '@/app/jobs/[id]/actions'
-import { useEffect } from 'react'
+'use client'
+
+import { useFormStatus } from 'react-dom'
+import { applyForJob } from '@/utils/supabase/postData'
+import { useEffect, useActionState } from 'react'
 
 const initialState = {
-    success: false,
     message: '',
+    success: false,
 }
 
 function SubmitButton() {
@@ -25,19 +23,12 @@ function SubmitButton() {
     )
 }
 
-// フォームアクション関数
-function applyAction(prevState: typeof initialState, formData: FormData): Promise<typeof initialState> {
-    const jobId = formData.get('jobId') as string
-    const userId = formData.get('userId') as string
-    return apply(jobId, userId)
-}
-
-export async function ApplyButton({ jobId, userId, hasApplied }: { jobId: string, userId: string, hasApplied: boolean }) {
-    const [state, formAction] = useFormState(applyAction, initialState)
+export function ApplyButton({ jobId, hasApplied }: { jobId: string, hasApplied: boolean }) {
+    const [state, formAction] = useActionState(applyForJob.bind(null, jobId), initialState)
 
     useEffect(() => {
         if (state.message) {
-            alert(state.message)
+            alert(state.message);
         }
     }, [state]);
 

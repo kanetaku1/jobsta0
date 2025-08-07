@@ -2,23 +2,19 @@
  * ファイルパス: src/app/jobs/[id]/page.tsx (修正)
  * 役割: 求人詳細ページ。応募ボタンを組み込む
  */
-import { getJobById, checkApplicationStatus, getUser } from '@/utils/supabase/getData';
 import { notFound } from 'next/navigation'
-import { ApplyButton } from '@/components/ApplyButton'
+import { ApplyButton } from '../../../components/ApplyButton'
+import { checkApplicationStatus, getJobById } from '@/utils/supabase/getData'
 
-type PageProps = {
-    params: {
-        id: string
+export default async function JobDetailPage({ params }) {
+    const { id } = await params
+    const job = await getJobById(id)
+
+    if (!job) {
+        notFound()
     }
-}
 
-export default async function JobDetailPage({ params }: PageProps) {
-    const job = await getJobById(params.id)
-    if (!job) notFound()
-
-    const userId = await getUser()
-    if (!userId) notFound()
-    const hasApplied = await checkApplicationStatus(params.id, userId.id)
+    const hasApplied = await checkApplicationStatus(id)
 
     return (
         <div className="container mx-auto p-4 sm:p-6 lg:p-8">
@@ -42,7 +38,7 @@ export default async function JobDetailPage({ params }: PageProps) {
                 </div>
 
                 <div className="mt-10">
-                    <ApplyButton jobId={job.id} userId={userId.id} hasApplied={hasApplied} />
+                    <ApplyButton jobId={job.id} hasApplied={hasApplied} />
                 </div>
             </div>
         </div>

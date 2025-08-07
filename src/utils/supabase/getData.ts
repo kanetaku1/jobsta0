@@ -1,5 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { Job } from '@/types'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export async function getJobsAll(): Promise<Job[]> {
     const supabase = await createClient()
@@ -27,19 +28,37 @@ export async function getJobById(id: string): Promise<Job | null> {
     return job || null
 }
 
-export async function checkApplicationStatus(jobId: string, userId: string): Promise<boolean> {
-    const supabase = await createClient()
-    const { data, error } = await supabase
-        .from('applications')
-        .select('id')
-        .eq('job_id', jobId)
-        .eq('user_id', userId)
-        .maybeSingle() // 該当データがなくてもエラーにしない
-    if (error) {
-        console.error('Error checking application status:', error)
+export async function checkApplicationStatus(jobId: string): Promise<boolean> {
+    try {
+        const supabase = createClientComponentClient()
+        const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+        if (authError || !user) {
+            console.log('User not authenticated')
+            return false
+        }
+
+        const { data, error } = await supabase
+            .from('applications')
+            .select('id, status, created_at') // ステータスと作成日時も取得
+            .eq('job_id', jobId)
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+        if (error) {
+            console.error('Error checking application status:', error)
+            return false
+        }
+
+        if (data) {
+            console.log('Application found:', data)
+        }
+
+        return !!data
+    } catch (error) {
+        console.error('Unexpected error in checkApplicationStatus:', error)
         return false
     }
-    return !!data; // dataがあればtrue, なければfalse
 }
 
 export async function getUser() {
