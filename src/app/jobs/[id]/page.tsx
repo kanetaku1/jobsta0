@@ -6,8 +6,14 @@ import { notFound } from 'next/navigation'
 import { ApplyButton } from '../../../components/ApplyButton'
 import { checkApplicationStatus, getJobById } from '@/utils/supabase/getData'
 
-export default async function JobDetailPage({ params }) {
-    const { id } = await params
+type PageProps = {
+    params: {
+        id: string
+    }
+}
+
+export default async function JobDetailPage({ params }: PageProps) {
+    const id = params.id
     const job = await getJobById(id)
 
     if (!job) {
