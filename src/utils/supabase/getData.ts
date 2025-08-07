@@ -1,6 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
 import { Job } from '@/types'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 export async function getJobsAll(): Promise<Job[]> {
     const supabase = await createClient()
@@ -30,7 +29,7 @@ export async function getJobById(id: string): Promise<Job | null> {
 
 export async function checkApplicationStatus(jobId: string): Promise<boolean> {
     try {
-        const supabase = createClientComponentClient()
+        const supabase = await createClient()
         const { data: { user }, error: authError } = await supabase.auth.getUser()
 
         if (authError || !user) {
