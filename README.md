@@ -1,6 +1,6 @@
 # Jobsta - ソーシャルバイトアプリ
 
-**Jobsta（ジョブスタ）**は、友達と一緒に応募できるソーシャル型短期バイトマッチングアプリです。
+**Jobsta（ジョブスタ)**は、友達と一緒に応募できるソーシャル型短期バイトマッチングアプリです。
 
 ## 🚀 開発環境セットアップ
 
@@ -11,7 +11,7 @@ cd jobsta0
 ```
 
 ### 2. 環境変数を設定
-'.env.local.example' をコピーして '.env.local 'を作成し、Supabaseなどのキーを設定してください。
+`.env.local.example`をコピーして`.env.local`を作成し、Supabaseなどのキーを設定してください。
 
 ```bash
 #コードをコピーする
@@ -45,7 +45,7 @@ npm run dev
 - UI: TailwindCSS, Figma
 
 ### 👥 チーム開発ルール
-- 開発ブランチ: dev
+- 開発ブランチ:  dev
 - 機能追加:　feature/xxx
 - バグ修正:　bugfix/xxx
 - PR時はテンプレートに従ってレビュー依頼
