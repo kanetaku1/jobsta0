@@ -7,12 +7,13 @@ import { ApplyButton } from '../../../components/ApplyButton'
 import { checkApplicationStatus, getJobById } from '@/utils/supabase/getData'
 
 type PageProps = {
-    params: {
+    params: Promise<{
         id: string
-    }
+    }>
 }
 
-export default async function JobDetailPage({ params }: PageProps) {
+export default async function JobDetailPage(props: PageProps) {
+    const params = await props.params;
     const id = params.id
     const job = await getJobById(id)
 
