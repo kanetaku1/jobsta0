@@ -3,6 +3,3 @@
 @tailwind utilities;
 
 /* カスタムグローバルスタイルはここに追加 */
-body {
-  background-color: #f9fafb;
-}

@@ -6,11 +6,6 @@
 import Link from 'next/link';
 
 export default async function Home() {
-    // const devMode = process.env.DEV_MODE_AUTO_AUTH;
-    // if (!devMode) {
-    //     redirect('/login');
-    // }
-    // redirect('/jobs');
     return (
         <div className="container mx-auto p-8 text-center">
             <h1 className="text-4xl font-bold mb-6">Jobstaへようこそ</h1>

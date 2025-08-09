@@ -19,7 +19,10 @@ export default async function Header() {
                 </Link>
                 <div className="flex items-center gap-4">
                     {user ? (
-                        <LogoutButton />
+                        <>
+                            <p className="px-4 py-2 text-sm font-medium">{user.email}</p>
+                            <LogoutButton />
+                        </>
                     ) : (
                         <>
                             <Link
