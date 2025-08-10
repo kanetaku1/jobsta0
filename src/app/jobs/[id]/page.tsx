@@ -1,53 +1,26 @@
-/*
- * ファイルパス: src/app/jobs/[id]/page.tsx (修正)
- * 役割: 求人詳細ページ。応募ボタンを組み込む
- */
-import { notFound } from 'next/navigation'
-import { ApplyButton } from '../../../components/ApplyButton'
-import { checkApplicationStatus, getJobById } from '@/utils/supabase/getData'
+'use client'
 
-type PageProps = {
-    params: Promise<{
-        id: string
-    }>
+import React from 'react';
+import { JobDetailCard } from '@/components/JobDetailCard';
+import { Job } from '@/types/job';
+
+const getJobById = async (id: number) => {
+    const res = await fetch(`http://localhost:3000/api/jobs/${id}`);
+    const data = await res.json()
+    return data.job
 }
 
-export default async function JobDetailPage(props: PageProps) {
-    const params = await props.params;
-    const id = params.id
-    const job = await getJobById(id)
-
-    if (!job) {
-        notFound()
-    }
-
-    const hasApplied = await checkApplicationStatus(id)
+export default async function job({params}: { params: { id: number}}) {
+    const { id } = await params
+    const job: Job = await getJobById(id)
 
     return (
-        <div className="container mx-auto p-4 sm:p-6 lg:p-8">
-            <div className="bg-white rounded-lg shadow-lg p-8">
-                <h1 className="text-4xl font-bold mb-4 text-gray-800">{job.title}</h1>
-                <div className="flex flex-wrap gap-x-6 gap-y-2 text-gray-600 mb-6">
-                    <span>勤務地: {job.location}</span>
-                    <span>勤務日: {new Date(job.job_date).toLocaleDateString('ja-JP')}</span>
-                </div>
-
-                <div className="mb-8">
-                    <p className="text-3xl font-bold text-blue-600">
-                        日給 {job.wage_amount.toLocaleString()}円
-                        {job.transport_fee && ` + 交通費 ${job.transport_fee.toLocaleString()}円`}
-                    </p>
-                </div>
-
-                <div className="prose max-w-none mb-10">
-                    <h2 className="text-2xl font-semibold mb-2">仕事内容</h2>
-                    <p>{job.description}</p>
-                </div>
-
-                <div className="mt-10">
-                    <ApplyButton jobId={job.id} hasApplied={hasApplied} />
-                </div>
-            </div>
+        <div className="space-y-4">
+            {(job? 
+                <JobDetailCard job={job} />
+                : 
+                <p className="text-2xl font-bold mb-6">求人情報は見当たりません</p>
+            )}
         </div>
-    )
-}
+    );
+};
