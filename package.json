@@ -4,21 +4,26 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@prisma/client": "^6.13.0",
     "@supabase/auth-ui-react": "^0.4.7",
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.53.0",
     "autoprefixer": "^10.4.21",
+    "clsx": "^2.1.1",
     "next": "^15.4.5",
     "postcss": "^8.5.6",
+    "prisma": "^6.13.0",
     "react": "19.1.0",
-    "react-dom": "19.1.0"
+    "react-dom": "19.1.0",
+    "save-dev": "^0.0.1-security"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.0.1",

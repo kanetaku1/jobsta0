@@ -1,13 +1,23 @@
-import { getJobsAll } from "@/utils/supabase/getData";
-import JobList from "./JobList";
+import React from 'react';
+import { JobCard } from '@/components/JobCard';
+import { Job } from '@/types/job';
 
-/**
- * ファイルパス: src/app/jobs/page.tsx
- * 役割: 求人一覧ページ。getJobsを呼び出して求人情報を取得し、JobListコンポーネントに渡す
- */
-export const dynamic = 'force-dynamic';
-
-export default async function JobsPage() {
-    const jobs = await getJobsAll();
-    return <JobList jobs={jobs} />;
+async function fetchAllJobs() {
+    const res = await fetch(`http://localhost:3000/api/jobs`, {
+        cache: "no-store"
+    });
+    const data = await res.json()
+    return data.jobs
 }
+
+export default async function job() {
+    const jobs = await fetchAllJobs()
+
+    return (
+        <div className="space-y-4">
+            {jobs.map((job: Job) => (
+                <JobCard key={job.id} job={job} />
+            ))}
+        </div>
+    );
+};
