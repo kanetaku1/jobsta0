@@ -10,7 +10,7 @@ const getJobById = async (id: number) => {
     return data.job
 }
 
-export default async function job({params}: { params: { id: number}}) {
+export default async function job({params}: { params: Promise<{ id: number }>}) {
     const { id } = await params
     const job: Job = await getJobById(id)
 

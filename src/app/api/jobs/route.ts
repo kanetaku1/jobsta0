@@ -1,18 +1,11 @@
+import { main } from '@/lib/prisma';
 import { PrismaClient } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
 const prisma = new PrismaClient()
 
-export async function main() {
-    try {
-        await prisma.$connect()
-    } catch (err) {
-        return Error("DB接続に失敗しました")
-    }
-}
-
 // 全求人取得API
-export const GET = async (req: Request, res: NextResponse) => {
+export const GET = async (_req: Request, _res: NextResponse, { params }: { params: Promise<string> }) => {
     try {
         await main()
         const jobs = await prisma.job.findMany();

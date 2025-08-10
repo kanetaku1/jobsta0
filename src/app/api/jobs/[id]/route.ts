@@ -1,11 +1,11 @@
+import { main } from '@/lib/prisma';
 import { PrismaClient } from '@prisma/client';
 import { NextResponse } from 'next/server';
-import { main } from '../route'
 
 const prisma = new PrismaClient()
 
 // 求人詳細取得API
-export const GET = async (req: Request, res: NextResponse) => {
+export const GET = async (req: Request, _res: NextResponse, { params }: { params: Promise<string> }) => {
     try {
         const id: number = parseInt(req.url.split("/jobs/")[1]); //http://localhost:3000/api/jobs/1
         await main()
