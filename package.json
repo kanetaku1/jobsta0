@@ -9,8 +9,7 @@
     "lint": "next lint",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "postinstall": "prisma generate",
-  }
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.13.0",
