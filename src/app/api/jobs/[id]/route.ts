@@ -1,22 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 import { NextResponse } from 'next/server';
+import { main } from '../route'
 
 const prisma = new PrismaClient()
 
-export async function main() {
-    try {
-        await prisma.$connect()
-    } catch (err) {
-        return Error("DB接続に失敗しました")
-    }
-}
-
-// 全求人取得API
+// 求人詳細取得API
 export const GET = async (req: Request, res: NextResponse) => {
     try {
+        const id: number = parseInt(req.url.split("/jobs/")[1]); //http://localhost:3000/api/jobs/1
         await main()
-        const jobs = await prisma.job.findMany();
-        return NextResponse.json({ message: "Success", jobs}, { status: 200});
+        const job = await prisma.job.findFirst({ where: { id }});
+        return NextResponse.json({ message: "Success", job}, { status: 200});
     } catch (err) {
         return NextResponse.json({ message: "Error", err}, { status: 500});
     } finally {

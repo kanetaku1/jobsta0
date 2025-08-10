@@ -1,6 +1,6 @@
 export type Job = {
-    id: string
+    id: number
     title: string
     wage: number
-    eventDate: string
+    jobDate: string
 }
