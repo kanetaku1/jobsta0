@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 const prisma = new PrismaClient()
 
 // 求人詳細取得API
-export const GET = async (req: Request, _res: NextResponse, { params }: { params: Promise<string> }) => {
+export const GET = async (req: Request, { params }: { params: Promise<{ id: number }> }) => {
     try {
         const id: number = parseInt(req.url.split("/jobs/")[1]); //http://localhost:3000/api/jobs/1
         await main()

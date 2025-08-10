@@ -1,11 +1,9 @@
-'use client'
-
 import React from 'react';
 import { JobDetailCard } from '@/components/JobDetailCard';
 import { Job } from '@/types/job';
 
 const getJobById = async (id: number) => {
-    const res = await fetch(`http://localhost:3000/api/jobs/${id}`);
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs/${id}`);
     const data = await res.json()
     return data.job
 }

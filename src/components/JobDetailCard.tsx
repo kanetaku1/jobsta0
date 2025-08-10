@@ -1,3 +1,5 @@
+'use client'
+
 import { Job } from '@/types/job'
 import { redirect } from 'next/navigation'
 

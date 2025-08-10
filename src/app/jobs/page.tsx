@@ -3,7 +3,7 @@ import { JobCard } from '@/components/JobCard';
 import { Job } from '@/types/job';
 
 async function fetchAllJobs() {
-    const res = await fetch(`http://localhost:3000/api/jobs`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/jobs`, {
         cache: "no-store"
     });
     const data = await res.json()

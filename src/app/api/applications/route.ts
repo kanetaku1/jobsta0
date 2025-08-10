@@ -4,7 +4,7 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient()
 
-export const GET = async (_req: Request, _res: NextResponse, { params }: { params: Promise<string> }) => {
+export const GET = async (_req: Request) => {
     try {
         await main()
         const applications = await prisma.application.findMany();
