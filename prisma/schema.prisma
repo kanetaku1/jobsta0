@@ -7,46 +7,47 @@ datasource db {
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
-        
+
 model User {
-  id        Int     @id @default(autoincrement())
-  email     String   @unique
+  id        Int         @id @default(autoincrement())
+  email     String      @unique
   name      String?
-  createdAt DateTime @default(now())
+  createdAt DateTime    @default(now())
   groups    GroupUser[]
 }
 
 model Job {
-  id        Int     @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   title       String
   description String?
   wage        Int
-  jobDate   DateTime
+  jobDate     DateTime
   createdAt   DateTime @default(now())
   groups      Group[]
 }
 
 model Group {
-  id        Int     @id @default(autoincrement())
-  job       Job      @relation(fields: [jobId], references: [id])
-  jobId     Int
-  createdAt DateTime @default(now())
-  members   GroupUser[]
+  id           Int           @id @default(autoincrement())
+  name         String
+  job          Job           @relation(fields: [jobId], references: [id])
+  jobId        Int
+  createdAt    DateTime      @default(now())
+  members      GroupUser[]
   applications Application[]
 }
 
 model GroupUser {
-  id        Int     @id @default(autoincrement())
-  group     Group    @relation(fields: [groupId], references: [id])
-  groupId   Int
-  user      User     @relation(fields: [userId], references: [id])
-  userId    Int
-  joinedAt  DateTime @default(now())
+  id       Int      @id @default(autoincrement())
+  group    Group    @relation(fields: [groupId], references: [id])
+  groupId  Int
+  user     User     @relation(fields: [userId], references: [id])
+  userId   Int
+  joinedAt DateTime @default(now())
 }
 
 model Application {
-  id        Int     @id @default(autoincrement())
-  group       Group    @relation(fields: [groupId], references: [id])
-  groupId     Int
+  id          Int      @id @default(autoincrement())
+  group       Group    @relation(references: [id], fields: [groupId])
   submittedAt DateTime @default(now())
+  groupId     Int
 }
