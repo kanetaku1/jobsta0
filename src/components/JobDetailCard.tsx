@@ -1,5 +1,7 @@
 'use client'
 
+'use client'
+
 import { Job } from '@/types/job'
 import { Group } from '@/types/group'
 import { useState } from 'react'
