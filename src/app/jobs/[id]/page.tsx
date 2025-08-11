@@ -1,26 +1,33 @@
-'use client'
-
 import React from 'react';
 import { JobDetailCard } from '@/components/JobDetailCard';
-import { Job } from '@/types/job';
+import { JobService } from '@/lib/services/jobService';
+import { GroupService } from '@/lib/services/groupService';
+import { notFound } from 'next/navigation';
 
-const getJobById = async (id: number) => {
-    const res = await fetch(`http://localhost:3000/api/jobs/${id}`);
-    const data = await res.json()
-    return data.job
+async function getJobWithGroups(id: string) {
+    try {
+        const job = await JobService.getJobById(parseInt(id));
+        if (!job) {
+            notFound()
+        }
+        
+        // 求人に関連するグループを取得
+        const groups = await GroupService.getGroupsByJobId(job.id);
+        
+        return { job, groups };
+    } catch (err) {
+        console.error(err);
+        throw new Error("Failed to fetch job");
+    }
 }
 
-export default async function job({params}: { params: Promise<{ id: number }>}) {
+export default async function JobDetailPage({params}: { params: Promise<{ id: string }>}) {
     const { id } = await params
-    const job: Job = await getJobById(id)
+    const { job, groups } = await getJobWithGroups(id)
 
     return (
         <div className="space-y-4">
-            {(job? 
-                <JobDetailCard job={job} />
-                : 
-                <p className="text-2xl font-bold mb-6">求人情報は見当たりません</p>
-            )}
+            <JobDetailCard job={job} groups={groups} />
         </div>
     );
 };
