@@ -1,7 +1,6 @@
-import React from 'react';
+import { WaitingRoom } from '@/components/features/dashboard';
 import { GroupService } from '@/lib/services/groupService';
 import { notFound } from 'next/navigation';
-import { WaitingRoom } from '@/components/WaitingRoom';
 
 async function getGroupDetail(id: string) {
     try {

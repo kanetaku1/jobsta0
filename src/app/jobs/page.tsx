@@ -1,5 +1,4 @@
-import React from 'react';
-import { JobCard } from '@/components/JobCard';
+import { JobCard } from '@/components/features/dashboard';
 import { JobService } from '@/lib/services/jobService';
 import { notFound } from 'next/navigation';
 
