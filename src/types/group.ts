@@ -95,6 +95,37 @@ export interface JobWithWaitingRoom extends Job {
   } | null
 }
 
+// 待機ルーム取得時の型定義
+export interface WaitingRoomWithMembers extends WaitingRoomBase {
+  groups: {
+    id: number
+    name: string
+    waitingRoomId: number
+    leaderId: number
+    createdAt: Date
+    leader: {
+      id: number
+      name: string | null
+      avatar: string | null
+    }
+    members: {
+      id: number
+      groupId: number
+      userId: number
+      status: MemberStatus
+      joinedAt: Date
+      user: {
+        id: number
+        name: string | null
+        avatar: string | null
+        phone: string | null
+        address: string | null
+        emergencyContact: string | null
+      }
+    }[]
+  }[]
+}
+
 export interface JobWithWaitingRoomDetails extends Job {
   waitingRoom: {
     groups: {

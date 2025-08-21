@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { JobWithWaitingRoom, JobWithWaitingRoomDetails, WaitingRoom, WaitingRoomWithProcessedGroups } from '@/types/group'
+import { JobWithWaitingRoom, JobWithWaitingRoomDetails } from '@/types/group'
 import { GroupService } from './groupService'
 
 export class JobService {
@@ -86,14 +86,14 @@ export class JobService {
     /**
      * 求人の応募待機ルームを作成する - GroupServiceを使用
      */
-    static async createWaitingRoom(jobId: number): Promise<WaitingRoom> {
+    static async createWaitingRoom(jobId: number): Promise<any> {
         return await GroupService.createWaitingRoom(jobId)
     }
 
     /**
      * 求人の応募待機ルームを取得する - GroupServiceを使用
      */
-    static async getWaitingRoom(jobId: number): Promise<WaitingRoomWithProcessedGroups | null> {
+    static async getWaitingRoom(jobId: number): Promise<any> {
         return await GroupService.getWaitingRoom(jobId)
     }
 }

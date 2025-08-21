@@ -1,490 +1,135 @@
-import { Group, GroupMember, MemberStatus, WaitingRoom } from '@/types/group'
-import { prisma } from '../prisma'
+import { prisma } from '@/lib/prisma'
+import type { WaitingRoomWithMembers } from '@/types/group'
+import { MemberStatus } from '@prisma/client'
 
 export class GroupService {
-  /**
-   * 応募待機ルームを作成する
-   */
-  static async createWaitingRoom(jobId: number): Promise<WaitingRoom> {
-    const result = await prisma.waitingRoom.create({
-      data: {
-        jobId,
-        isOpen: true,
-        maxGroups: 5,
-      },
-      include: {
-        job: true,
-        groups: {
-          include: {
-            leader: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true,
-              },
-            },
-            members: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    avatar: true,
-                  },
-                },
-              },
-            },
-            _count: {
-              select: {
-                members: true,
-              },
-            },
-          },
-        },
-      },
+  // グループ作成（待機ルームも自動作成）
+  static async createGroup(jobId: number, name: string, leaderId: number) {
+    // 待機ルームが存在しない場合は作成
+    let waitingRoom = await prisma.waitingRoom.findUnique({
+      where: { jobId }
     })
-
-    // 型の整合性を保つために変換
-    return {
-      ...result,
-      groups: result.groups.map(group => ({
-        ...group,
-        waitingRoom: result
-      }))
-    } as unknown as WaitingRoom
-  }
-
-  /**
-   * 新しいグループを作成する
-   */
-  static async createGroup(
-    name: string,
-    waitingRoomId: number,
-    leaderId: number
-  ): Promise<Group> {
-    // 応募待機ルームが存在するかチェック
-    const waitingRoom = await prisma.waitingRoom.findUnique({
-      where: { id: waitingRoomId },
-    })
-
+    
     if (!waitingRoom) {
-      throw new Error('応募待機ルームが見つかりません')
-    }
-
-    if (!waitingRoom.isOpen) {
-      throw new Error('応募待機ルームは閉じられています')
+      waitingRoom = await prisma.waitingRoom.create({
+        data: { jobId, isOpen: true, maxGroups: 5 }
+      })
     }
 
     // グループ名の重複チェック
     const existingGroup = await prisma.group.findFirst({
-      where: {
-        waitingRoomId,
-        name,
-      },
+      where: { waitingRoomId: waitingRoom.id, name }
     })
-
+    
     if (existingGroup) {
       throw new Error('同じ名前のグループが既に存在します')
     }
 
     // グループを作成
     const group = await prisma.group.create({
-      data: {
-        name,
-        waitingRoomId,
-        leaderId,
-      },
+      data: { name, waitingRoomId: waitingRoom.id, leaderId },
       include: {
         leader: true,
-        members: {
-          include: {
-            user: true,
-          },
-        },
-        waitingRoom: {
-          include: {
-            job: true,
-          },
-        },
-      },
+        members: { include: { user: true } },
+        waitingRoom: { include: { job: true } }
+      }
     })
 
     // リーダーをメンバーとして追加
     await prisma.groupUser.create({
-      data: {
-        groupId: group.id,
-        userId: leaderId,
-        status: 'APPLYING', // リーダーは応募する状態で開始
-      },
+      data: { groupId: group.id, userId: leaderId, status: 'APPLYING' }
     })
 
-    return group as unknown as Group
+    return group
   }
 
-  /**
-   * グループにメンバーを追加する
-   */
-  static async addMember(
-    groupId: number,
-    userId: number,
-    status: MemberStatus = 'PENDING'
-  ): Promise<GroupMember> {
-    // 既にメンバーかチェック
-    const existingMember = await prisma.groupUser.findUnique({
-      where: {
-        groupId_userId: {
-          groupId,
-          userId,
-        },
-      },
-    })
-
-    if (existingMember) {
-      throw new Error('既にグループのメンバーです')
-    }
-
-    return await prisma.groupUser.create({
-      data: {
-        groupId,
-        userId,
-        status,
-      },
-      include: {
-        user: true,
-      },
-    })
-  }
-
-  /**
-   * メンバーのステータスを更新する
-   */
-  static async updateMemberStatus(
-    groupId: number,
-    userId: number,
-    status: MemberStatus
-  ): Promise<GroupMember> {
-    return await prisma.groupUser.update({
-      where: {
-        groupId_userId: {
-          groupId,
-          userId,
-        },
-      },
-      data: {
-        status,
-      },
-      include: {
-        user: true,
-      },
-    })
-  }
-
-  /**
-   * グループリーダーを変更する
-   */
-  static async changeLeader(
-    groupId: number,
-    newLeaderId: number
-  ): Promise<Group> {
-    // 新しいリーダーがグループのメンバーかチェック
-    const member = await prisma.groupUser.findUnique({
-      where: {
-        groupId_userId: {
-          groupId,
-          userId: newLeaderId,
-        },
-      },
-    })
-
-    if (!member) {
-      throw new Error('指定されたユーザーはグループのメンバーではありません')
-    }
-
-    return await prisma.group.update({
-      where: { id: groupId },
-      data: { leaderId: newLeaderId },
-      include: {
-        leader: true,
-        members: {
-          include: {
-            user: true,
-          },
-        },
-        waitingRoom: {
-          include: {
-            job: true,
-          },
-        },
-      },
-    })
-  }
-
-  /**
-   * グループの詳細情報を取得する
-   */
-  static async getGroupDetails(groupId: number): Promise<Group | null> {
+  // グループ詳細取得
+  static async getGroup(id: number): Promise<any> {
     return await prisma.group.findUnique({
-      where: { id: groupId },
+      where: { id },
       include: {
         leader: true,
-        members: {
-          include: {
-            user: true,
-          },
-        },
-        waitingRoom: {
-          include: {
+        members: { include: { user: true } },
+        waitingRoom: { 
+          include: { 
             job: true,
-          },
-        },
-      },
-    })
-  }
-
-  /**
-   * 応募待機ルームの情報を取得する
-   */
-  static async getWaitingRoom(waitingRoomId: number) {
-    const waitingRoom = await prisma.waitingRoom.findUnique({
-      where: { id: waitingRoomId },
-      include: {
-        job: true,
-        groups: {
-          include: {
-            leader: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true,
-              },
-            },
-            members: {
+            groups: {
               include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    avatar: true,
-                  },
-                },
-              },
-            },
-            _count: {
-              select: {
-                members: true,
-              },
-            },
-          },
-        },
-      },
+                leader: { select: { id: true, name: true, avatar: true } },
+                _count: { select: { members: true } }
+              }
+            }
+          } 
+        }
+      }
     })
-
-    if (!waitingRoom) return null
-
-    return {
-      ...waitingRoom,
-      groups: waitingRoom.groups.map(group => ({
-        ...group,
-        memberCount: group._count.members,
-        // 個人情報を隠す
-        members: group.members.map(member => ({
-          id: member.id,
-          status: member.status,
-          user: {
-            id: member.user.id,
-            name: member.user.name ? this.getInitials(member.user.name) : 'Anonymous',
-            avatar: member.user.avatar,
-          },
-        })),
-      })),
-    }
   }
 
-  /**
-   * 仕事の応募待機ルーム情報を取得する
-   */
-  static async getJobWaitingRoom(jobId: number) {
-    const waitingRoom = await prisma.waitingRoom.findUnique({
+  // 待機ルーム取得
+  static async getWaitingRoom(jobId: number): Promise<WaitingRoomWithMembers | null> {
+    return await prisma.waitingRoom.findUnique({
       where: { jobId },
       include: {
         job: true,
         groups: {
           include: {
-            leader: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true,
-              },
-            },
-            members: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    name: true,
-                    avatar: true,
-                  },
-                },
-              },
-            },
-            _count: {
-              select: {
-                members: true,
-              },
-            },
-          },
-        },
-      },
+            leader: { select: { id: true, name: true, avatar: true } },
+            members: { 
+              include: { 
+                user: { select: { id: true, name: true, avatar: true, phone: true, address: true, emergencyContact: true } } 
+              } 
+            }
+          }
+        }
+      }
     })
-
-    if (!waitingRoom) return null
-
-    return {
-      ...waitingRoom,
-      groups: waitingRoom.groups.map(group => ({
-        ...group,
-        memberCount: group._count.members,
-        // 個人情報を隠す
-        members: group.members.map(member => ({
-          id: member.id,
-          status: member.status,
-          user: {
-            id: member.user.id,
-            name: member.user.name ? this.getInitials(member.user.name) : 'Anonymous',
-            avatar: member.user.avatar,
-          },
-        })),
-      })),
-    }
   }
 
-  /**
-   * 名前からイニシャルを生成する
-   */
-  private static getInitials(name: string): string {
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .substring(0, 2)
+  // メンバー追加
+  static async addMember(groupId: number, userId: number) {
+    const existing = await prisma.groupUser.findUnique({
+      where: { groupId_userId: { groupId, userId } }
+    })
+    
+    if (existing) {
+      throw new Error('既にメンバーです')
+    }
+
+    return await prisma.groupUser.create({
+      data: { groupId, userId, status: 'PENDING' },
+      include: { user: true }
+    })
   }
 
-  /**
-   * グループが本応募できるかチェックする
-   */
-  static async canSubmitApplication(groupId: number): Promise<boolean> {
-    const group = await prisma.group.findUnique({
-      where: { id: groupId },
-      include: {
-        members: true,
-        waitingRoom: {
-          include: {
-            job: true,
-          },
-        },
-      },
+  // ステータス更新
+  static async updateStatus(groupId: number, userId: number, status: string) {
+    return await prisma.groupUser.update({
+      where: { groupId_userId: { groupId, userId } },
+      data: { status: status as MemberStatus },
+      include: { user: true }
     })
-
-    if (!group) return false
-
-    // 全員のステータスが確定しているかチェック
-    const allStatusesDetermined = group.members.every(
-      member => member.status !== 'PENDING'
-    )
-
-    // 応募する人数をチェック
-    const applyingCount = group.members.filter(
-      member => member.status === 'APPLYING'
-    ).length
-
-    // 募集人数を超えていないかチェック
-    return allStatusesDetermined && applyingCount <= group.waitingRoom.job.maxMembers
   }
 
-  /**
-   * QRコードからグループに参加する
-   */
-  static async joinGroupByQRCode(
-    groupId: number,
-    userId: number
-  ): Promise<GroupMember> {
-    // グループが存在し、応募待機ルームが開いているかチェック
-    const group = await prisma.group.findUnique({
-      where: { id: groupId },
-      include: {
-        waitingRoom: true,
-      },
+  // 待機ルーム作成
+  static async createWaitingRoom(jobId: number) {
+    return await prisma.waitingRoom.create({
+      data: { jobId, isOpen: true, maxGroups: 5 }
     })
-
-    if (!group) {
-      throw new Error('グループが見つかりません')
-    }
-
-    if (!group.waitingRoom.isOpen) {
-      throw new Error('応募待機ルームは閉じられています')
-    }
-
-    return await this.addMember(groupId, userId, 'PENDING')
   }
 
-  /**
-   * 本応募を提出する
-   */
-  static async submitApplication(groupId: number): Promise<any> {
-    // 応募可能かチェック
-    const canSubmit = await this.canSubmitApplication(groupId)
-    if (!canSubmit) {
-      throw new Error('本応募の条件を満たしていません')
-    }
-
-    // 全員の個人情報が登録されているかチェック
-    const group = await prisma.group.findUnique({
-      where: { id: groupId },
-      include: {
-        members: {
-          include: {
-            user: true,
-          },
-        },
-      },
+  // 応募情報更新
+  static async updatePersonalInfo(userId: number, phone: string, address: string, emergencyContact: string) {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: { phone, address, emergencyContact }
     })
+  }
 
-    if (!group) {
-      throw new Error('グループが見つかりません')
-    }
-
-    const allPersonalInfoComplete = group.members
-      .filter(member => member.status === 'APPLYING')
-      .every(member => 
-        member.user.phone && 
-        member.user.address && 
-        member.user.emergencyContact
-      )
-
-    if (!allPersonalInfoComplete) {
-      throw new Error('応募するメンバーの個人情報が不完全です')
-    }
-
-    // 応募を作成
-    return await prisma.application.create({
-      data: {
-        groupId,
-        status: 'SUBMITTED',
-        isConfirmed: true,
-      },
-      include: {
-        group: {
-          include: {
-            waitingRoom: {
-              include: {
-                job: true,
-              },
-            },
-          },
-        },
-      },
+  // 応募提出
+  static async submitApplication(groupId: number, userId: number) {
+    return await prisma.groupUser.update({
+      where: { groupId_userId: { groupId, userId } },
+      data: { status: 'APPLYING' }
     })
   }
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createGroupForJob } from '@/app/groups/actions'
+import { createGroup } from '@/app/actions'
 
 interface CreateGroupFormProps {
     jobId: number
@@ -26,7 +26,7 @@ export function CreateGroupForm({ jobId, onGroupCreated, className = '' }: Creat
         setError('')
 
         try {
-            await createGroupForJob(jobId, groupName.trim())
+            await createGroup(jobId, groupName.trim(), 1)
             setGroupName('')
             onGroupCreated?.()
         } catch (error) {

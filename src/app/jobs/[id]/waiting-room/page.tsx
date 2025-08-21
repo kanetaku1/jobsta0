@@ -1,13 +1,13 @@
 "use client"
 
 import {
+  addMember,
   createGroup,
   createWaitingRoom,
   getWaitingRoom,
-  joinGroup,
   submitApplication,
-  updateMemberStatus,
-  updatePersonalInfo
+  updatePersonalInfo,
+  updateStatus
 } from '@/app/actions'
 import { PersonalInfoForm, WaitingRoom } from '@/components/features/dashboard'
 import type { MemberStatus, WaitingRoom as WaitingRoomType } from '@/types/group'
@@ -42,7 +42,7 @@ export default function WaitingRoomPage() {
         return
       }
       
-      setWaitingRoom(data)
+      setWaitingRoom(data as unknown as WaitingRoomType)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました')
     } finally {
@@ -53,7 +53,7 @@ export default function WaitingRoomPage() {
   const createWaitingRoomAction = async () => {
     try {
       const data = await createWaitingRoom(jobId)
-      setWaitingRoom(data)
+      setWaitingRoom(data as WaitingRoomType)
     } catch (err) {
       setError(err instanceof Error ? err.message : '応募待機ルームの作成に失敗しました')
     }
@@ -77,7 +77,7 @@ export default function WaitingRoomPage() {
 
   const handleGroupJoin = async (groupId: number) => {
     try {
-      await joinGroup(groupId, currentUserId)
+      await addMember(groupId, currentUserId)
       
       // 応募待機ルームを再取得
       await fetchWaitingRoom()
@@ -88,7 +88,7 @@ export default function WaitingRoomPage() {
 
   const handleStatusUpdate = async (groupId: number, userId: number, status: MemberStatus) => {
     try {
-      await updateMemberStatus(groupId, userId, status)
+      await updateStatus(groupId, userId, status)
       
       // 応募待機ルームを再取得
       await fetchWaitingRoom()
@@ -109,7 +109,7 @@ export default function WaitingRoomPage() {
         return
       }
 
-      await submitApplication(groupId)
+      await submitApplication(groupId, currentUserId)
 
       // 成功メッセージを表示
       alert('本応募が完了しました！')

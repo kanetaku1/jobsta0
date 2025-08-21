@@ -1,12 +1,12 @@
 "use client"
 
 import { Button } from '@/components/common/buttons/Button'
-import type { GroupBase, MemberStatus, WaitingRoom } from '@/types/group'
+import type { MemberStatus, WaitingRoomWithMembers } from '@/types/group'
 import { QRCodeSVG } from 'qrcode.react'
 import { useState } from 'react'
 
 interface WaitingRoomProps {
-  waitingRoom: WaitingRoom
+  waitingRoom: WaitingRoomWithMembers
   currentUserId?: number
   onGroupJoin?: (groupId: number) => void
   onStatusUpdate?: (groupId: number, userId: number, status: MemberStatus) => void
@@ -23,7 +23,7 @@ export default function WaitingRoom({
   onSubmitApplication,
 }: WaitingRoomProps) {
   const [newGroupName, setNewGroupName] = useState('')
-  const [selectedGroup, setSelectedGroup] = useState<GroupBase | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<WaitingRoomWithMembers['groups'][0] | null>(null)
   const [showQRCode, setShowQRCode] = useState<number | null>(null)
 
   const handleCreateGroup = () => {
@@ -44,14 +44,37 @@ export default function WaitingRoom({
       onStatusUpdate(groupId, userId, status)
     }
   }
+  // 安全なアクセスを実装
+  const handleSubmitApplication = async (groupId: number) => {
+    try {
+      // 安全なチェックを追加
+      if (!waitingRoom?.groups) {
+        console.error('groupsが存在しません')
+        return
+      }
 
-  const handleSubmitApplication = (groupId: number) => {
-    if (onSubmitApplication) {
-      onSubmitApplication(groupId)
+      const group = waitingRoom.groups.find(g => g.id === groupId)
+      if (!group?.members) {
+        console.error('membersが存在しません')
+        return
+      }
+
+      const user = group.members?.find(m => m.user.id === currentUserId)?.user
+      if (!user) {
+        console.error('ユーザーが見つかりません')
+        return
+      }
+
+      // ... 残りの処理
+    } catch (error) {
+      console.error('エラー:', error)
     }
   }
 
-  const canSubmitApplication = (group: GroupBase): boolean => {
+  const canSubmitApplication = (group: WaitingRoomWithMembers['groups'][0]): boolean => {
+    // membersが存在しない場合はfalse
+    if (!group.members) return false
+    
     // 全員のステータスが確定しているかチェック
     const allStatusesDetermined = group.members.every(
       member => member.status !== 'PENDING'
@@ -158,7 +181,7 @@ export default function WaitingRoom({
                 >
                   QRコード
                 </Button>
-                {currentUserId && !group.members.find(m => m.user.id === currentUserId) && (
+                {currentUserId && group.members && !group.members.find(m => m.user.id === currentUserId) && (
                   <Button
                     onClick={() => handleJoinGroup(group.id)}
                     className="px-3 py-1 text-sm"
@@ -185,11 +208,11 @@ export default function WaitingRoom({
 
             {/* メンバー一覧 */}
             <div className="mb-4">
-                             <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                 メンバー ({group.members.length}名)
-               </h4>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                メンバー ({group.members?.length || 0}名)
+              </h4>
               <div className="space-y-2">
-                {group.members.map((member) => (
+                {group.members?.map((member) => (
                   <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-sm font-semibold">
@@ -229,7 +252,7 @@ export default function WaitingRoom({
             </div>
 
             {/* 本応募ボタン */}
-            {currentUserId && group.members.find(m => m.user.id === currentUserId) && (
+            {currentUserId && group.members && group.members.find(m => m.user.id === currentUserId) && (
               <div className="text-center">
                                  <Button
                    onClick={() => handleSubmitApplication(group.id)}

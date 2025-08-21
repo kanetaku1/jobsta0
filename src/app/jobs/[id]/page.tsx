@@ -71,7 +71,7 @@ export default async function JobDetailPage({params}: { params: Promise<{ id: st
                                             <h4 className="font-medium text-gray-900 mb-2">{group.name}</h4>
                                             <div className="text-sm text-gray-600">
                                                 <p>リーダー: {group.leader.name || 'Anonymous'}</p>
-                                                <p>メンバー: {group.memberCount}名</p>
+                                                <p>メンバー: {group.members?.length || 0}名</p>
                                             </div>
                                         </div>
                                     ))}

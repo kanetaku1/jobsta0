@@ -1,20 +1,21 @@
 'use client'
 
-import { createGroupForJob } from '@/app/groups/actions'
+import { createGroup } from '@/app/actions'
 import { useState } from 'react'
 
 interface CreateGroupButtonProps {
     jobId: number
+    userId: number
     className?: string
 }
 
-export default function CreateGroupButton({ jobId, className = '' }: CreateGroupButtonProps) {
+export default function CreateGroupButton({ jobId, userId, className = '' }: CreateGroupButtonProps) {
     const [isCreating, setIsCreating] = useState(false)
 
     const handleCreateGroup = async () => {
         try {
             setIsCreating(true)
-            await createGroupForJob(jobId, className)
+            await createGroup(jobId, className, userId)
         } catch (error) {
             console.error('Failed to create group:', error)
             // エラーハンドリング（必要に応じてトースト表示など）
