@@ -1,8 +1,8 @@
 "use client"
 
-import { getGroupDetails, joinGroup } from '@/app/actions'
+import { getGroupDetails, joinGroup } from '@/app/worker/actions'
 import { Button } from '@/components/common'
-import type { Group, WaitingRoom } from '@/types/group'
+import type { Group, WaitingRoomWithFullDetails } from '@/types'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -12,7 +12,7 @@ export default function InvitePage() {
   const groupId = parseInt(params.groupId as string)
   
   const [group, setGroup] = useState<Group | null>(null)
-  const [waitingRoom, setWaitingRoom] = useState<WaitingRoom | null>(null)
+  const [waitingRoom, setWaitingRoom] = useState<WaitingRoomWithFullDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [joining, setJoining] = useState(false)
@@ -33,7 +33,6 @@ export default function InvitePage() {
       }
       
       setGroup(data)
-      setWaitingRoom(data.waitingRoom)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました')
     } finally {
@@ -52,7 +51,7 @@ export default function InvitePage() {
 
       // 参加成功後、応募待機ルームにリダイレクト
       if (waitingRoom) {
-        router.push(`/jobs/${waitingRoom.job.id}/waiting-room`)
+        router.push(`/worker/jobs/${waitingRoom.jobId}/waiting-room`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'グループへの参加に失敗しました')

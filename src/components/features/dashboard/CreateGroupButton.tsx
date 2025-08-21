@@ -1,13 +1,8 @@
 'use client'
 
-import { createGroup } from '@/app/actions'
+import { createGroup } from '@/app/worker/actions'
+import type { CreateGroupButtonProps } from '@/types'
 import { useState } from 'react'
-
-interface CreateGroupButtonProps {
-    jobId: number
-    userId: number
-    className?: string
-}
 
 export default function CreateGroupButton({ jobId, userId, className = '' }: CreateGroupButtonProps) {
     const [isCreating, setIsCreating] = useState(false)

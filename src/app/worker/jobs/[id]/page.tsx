@@ -1,4 +1,4 @@
-import { getWaitingRoom } from '@/app/actions';
+import { getWaitingRoom } from '@/app/worker/actions';
 import { Button } from '@/components/common';
 import { JobDetailCard } from '@/components/features/dashboard';
 import { JobService } from '@/lib/services/jobService';
@@ -36,7 +36,7 @@ export default async function JobDetailPage({params}: { params: Promise<{ id: st
                     <h2 className="text-xl font-semibold text-gray-900">
                         応募待機ルーム
                     </h2>
-                    <Link href={`/jobs/${job.id}/waiting-room`}>
+                    <Link href={`/worker/jobs/${job.id}/waiting-room`}>
                         <Button>
                             {waitingRoom ? '応募待機ルームに入る' : '応募待機ルームを作成'}
                         </Button>
@@ -85,7 +85,7 @@ export default async function JobDetailPage({params}: { params: Promise<{ id: st
                         )}
                         
                         <div className="text-center">
-                            <Link href={`/jobs/${job.id}/waiting-room`}>
+                            <Link href={`/worker/jobs/${job.id}/waiting-room`}>
                                 <Button variant="secondary" className="w-full">
                                     応募待機ルームの詳細を見る
                                 </Button>

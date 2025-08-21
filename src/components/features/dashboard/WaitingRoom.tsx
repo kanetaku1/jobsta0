@@ -1,18 +1,10 @@
 "use client"
 
 import { Button } from '@/components/common/buttons/Button'
-import type { MemberStatus, WaitingRoomWithMembers } from '@/types/group'
+import type { WaitingRoomProps, WaitingRoomWithFullDetails } from '@/types'
+import type { MemberStatus } from '@/types/group'
 import { QRCodeSVG } from 'qrcode.react'
 import { useState } from 'react'
-
-interface WaitingRoomProps {
-  waitingRoom: WaitingRoomWithMembers
-  currentUserId?: number
-  onGroupJoin?: (groupId: number) => void
-  onStatusUpdate?: (groupId: number, userId: number, status: MemberStatus) => void
-  onCreateGroup?: (name: string) => void
-  onSubmitApplication?: (groupId: number) => void
-}
 
 export default function WaitingRoom({
   waitingRoom,
@@ -23,7 +15,7 @@ export default function WaitingRoom({
   onSubmitApplication,
 }: WaitingRoomProps) {
   const [newGroupName, setNewGroupName] = useState('')
-  const [selectedGroup, setSelectedGroup] = useState<WaitingRoomWithMembers['groups'][0] | null>(null)
+  const [selectedGroup, setSelectedGroup] = useState<WaitingRoomWithFullDetails['groups'][0] | null>(null)
   const [showQRCode, setShowQRCode] = useState<number | null>(null)
 
   const handleCreateGroup = () => {
@@ -71,7 +63,7 @@ export default function WaitingRoom({
     }
   }
 
-  const canSubmitApplication = (group: WaitingRoomWithMembers['groups'][0]): boolean => {
+  const canSubmitApplication = (group: WaitingRoomWithFullDetails['groups'][0]): boolean => {
     // membersが存在しない場合はfalse
     if (!group.members) return false
     

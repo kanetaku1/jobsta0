@@ -1,14 +1,22 @@
 'use client'
 
 import { Button } from '@/components/common/buttons/Button'
-import { Job } from '@/types/group'
+import { GroupService } from '@/lib/services/groupService'
+import type { JobDetailCardProps, WaitingRoomWithFullDetails } from '@/types'
 import Link from 'next/link'
-
-type JobDetailCardProps = {
-    job: Job
-}
+import { useEffect, useState } from 'react'
 
 export function JobDetailCard({ job }: JobDetailCardProps) {
+    const [waitingRoom, setWaitingRoom] = useState<WaitingRoomWithFullDetails | null>(null);
+
+    useEffect(() => {
+        const fetchWaitingRoom = async () => {
+            const waitingRoom = await GroupService.getWaitingRoom(job.id);
+            setWaitingRoom(waitingRoom);
+        };
+        fetchWaitingRoom();
+    }, [job.id]);
+
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <h2 className="text-2xl font-semibold mb-4">{job.title}</h2>
@@ -37,7 +45,7 @@ export function JobDetailCard({ job }: JobDetailCardProps) {
             {/* 応募待機ルームへのリンク */}
             <div className="border-t pt-4">
                 <div className="text-center">
-                    <Link href={`/jobs/${job.id}/waiting-room`}>
+                    <Link href={`/worker/jobs/${job.id}/waiting-room`}>
                         <Button className="w-full">
                             応募待機ルームに入る
                         </Button>

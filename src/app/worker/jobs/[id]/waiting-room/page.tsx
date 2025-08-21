@@ -8,9 +8,9 @@ import {
   submitApplication,
   updatePersonalInfo,
   updateStatus
-} from '@/app/actions'
+} from '@/app/worker/actions'
 import { PersonalInfoForm, WaitingRoom } from '@/components/features/dashboard'
-import type { MemberStatus, WaitingRoom as WaitingRoomType } from '@/types/group'
+import type { MemberStatus, WaitingRoomWithFullDetails } from '@/types'
 import { useParams, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -19,7 +19,7 @@ export default function WaitingRoomPage() {
   const router = useRouter()
   const jobId = parseInt(params.id as string)
   
-  const [waitingRoom, setWaitingRoom] = useState<WaitingRoomType | null>(null)
+  const [waitingRoom, setWaitingRoom] = useState<WaitingRoomWithFullDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showPersonalInfoForm, setShowPersonalInfoForm] = useState(false)
@@ -42,7 +42,7 @@ export default function WaitingRoomPage() {
         return
       }
       
-      setWaitingRoom(data as unknown as WaitingRoomType)
+      setWaitingRoom(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました')
     } finally {
@@ -53,7 +53,7 @@ export default function WaitingRoomPage() {
   const createWaitingRoomAction = async () => {
     try {
       const data = await createWaitingRoom(jobId)
-      setWaitingRoom(data as WaitingRoomType)
+      setWaitingRoom(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : '応募待機ルームの作成に失敗しました')
     }
@@ -68,7 +68,7 @@ export default function WaitingRoomPage() {
   
       if (!waitingRoom) return
   
-      await createGroup(waitingRoom.id, name, currentUserId)
+      await createGroup(waitingRoom.jobId, name, currentUserId)
       await fetchWaitingRoom()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'グループの作成に失敗しました')

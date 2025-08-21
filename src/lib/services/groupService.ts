@@ -1,10 +1,60 @@
 import { prisma } from '@/lib/prisma'
-import type { WaitingRoomWithMembers } from '@/types/group'
-import { MemberStatus } from '@prisma/client'
+import type {
+  AddMemberData,
+  CreateGroupData,
+  Group,
+  SubmitApplicationData,
+  UpdateMemberStatusData,
+  UpdatePersonalInfoData,
+  WaitingRoomWithFullDetails
+} from '@/types'
+import type { WaitingRoom } from '@/types/group'
 
 export class GroupService {
-  // グループ作成（待機ルームも自動作成）
-  static async createGroup(jobId: number, name: string, leaderId: number) {
+  // 基本の待機ルーム作成（Prismaの戻り値のみ）
+  static async createBasicWaitingRoom(jobId: number): Promise<WaitingRoom> {
+    return await prisma.waitingRoom.create({
+      data: { jobId, isOpen: true, maxGroups: 5 }
+    })
+  }
+
+  // 待機ルーム取得（完全な情報付き）
+  static async getWaitingRoom(jobId: number): Promise<WaitingRoomWithFullDetails | null> {
+    return await prisma.waitingRoom.findUnique({
+      where: { jobId },
+      include: {
+        job: true,
+        groups: {
+          include: {
+            leader: { select: { id: true, name: true, avatar: true } },
+            members: { 
+              include: { 
+                user: { select: { id: true, name: true, avatar: true, phone: true, address: true, emergencyContact: true } } 
+              } 
+            },
+            applications: true
+          }
+        }
+      }
+    })
+  }
+
+  // 待機ルーム作成後に完全な情報を取得
+  static async createWaitingRoom(jobId: number): Promise<WaitingRoomWithFullDetails> {
+    const basicWaitingRoom = await this.createBasicWaitingRoom(jobId)
+    const fullWaitingRoom = await this.getWaitingRoom(jobId)
+    
+    if (!fullWaitingRoom) {
+      throw new Error('Failed to create waiting room with full details')
+    }
+    
+    return fullWaitingRoom
+  }
+
+  // グループ作成
+  static async createGroup(data: CreateGroupData): Promise<Group> {
+    const { jobId, name, leaderId } = data
+    
     // 待機ルームが存在しない場合は作成
     let waitingRoom = await prisma.waitingRoom.findUnique({
       where: { jobId }
@@ -16,22 +66,13 @@ export class GroupService {
       })
     }
 
-    // グループ名の重複チェック
-    const existingGroup = await prisma.group.findFirst({
-      where: { waitingRoomId: waitingRoom.id, name }
-    })
-    
-    if (existingGroup) {
-      throw new Error('同じ名前のグループが既に存在します')
-    }
-
     // グループを作成
     const group = await prisma.group.create({
       data: { name, waitingRoomId: waitingRoom.id, leaderId },
       include: {
         leader: true,
         members: { include: { user: true } },
-        waitingRoom: { include: { job: true } }
+        applications: true
       }
     })
 
@@ -44,49 +85,21 @@ export class GroupService {
   }
 
   // グループ詳細取得
-  static async getGroup(id: number): Promise<any> {
+  static async getGroup(id: number): Promise<Group | null> {
     return await prisma.group.findUnique({
       where: { id },
       include: {
         leader: true,
         members: { include: { user: true } },
-        waitingRoom: { 
-          include: { 
-            job: true,
-            groups: {
-              include: {
-                leader: { select: { id: true, name: true, avatar: true } },
-                _count: { select: { members: true } }
-              }
-            }
-          } 
-        }
-      }
-    })
-  }
-
-  // 待機ルーム取得
-  static async getWaitingRoom(jobId: number): Promise<WaitingRoomWithMembers | null> {
-    return await prisma.waitingRoom.findUnique({
-      where: { jobId },
-      include: {
-        job: true,
-        groups: {
-          include: {
-            leader: { select: { id: true, name: true, avatar: true } },
-            members: { 
-              include: { 
-                user: { select: { id: true, name: true, avatar: true, phone: true, address: true, emergencyContact: true } } 
-              } 
-            }
-          }
-        }
+        applications: true
       }
     })
   }
 
   // メンバー追加
-  static async addMember(groupId: number, userId: number) {
+  static async addMember(data: AddMemberData) {
+    const { groupId, userId } = data
+    
     const existing = await prisma.groupUser.findUnique({
       where: { groupId_userId: { groupId, userId } }
     })
@@ -102,23 +115,20 @@ export class GroupService {
   }
 
   // ステータス更新
-  static async updateStatus(groupId: number, userId: number, status: string) {
+  static async updateStatus(data: UpdateMemberStatusData) {
+    const { groupId, userId, status } = data
+    
     return await prisma.groupUser.update({
       where: { groupId_userId: { groupId, userId } },
-      data: { status: status as MemberStatus },
+      data: { status },
       include: { user: true }
     })
   }
 
-  // 待機ルーム作成
-  static async createWaitingRoom(jobId: number) {
-    return await prisma.waitingRoom.create({
-      data: { jobId, isOpen: true, maxGroups: 5 }
-    })
-  }
-
-  // 応募情報更新
-  static async updatePersonalInfo(userId: number, phone: string, address: string, emergencyContact: string) {
+  // 個人情報更新
+  static async updatePersonalInfo(data: UpdatePersonalInfoData) {
+    const { userId, phone, address, emergencyContact } = data
+    
     return await prisma.user.update({
       where: { id: userId },
       data: { phone, address, emergencyContact }
@@ -126,7 +136,9 @@ export class GroupService {
   }
 
   // 応募提出
-  static async submitApplication(groupId: number, userId: number) {
+  static async submitApplication(data: SubmitApplicationData) {
+    const { groupId, userId } = data
+    
     return await prisma.groupUser.update({
       where: { groupId_userId: { groupId, userId } },
       data: { status: 'APPLYING' }

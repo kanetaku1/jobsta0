@@ -15,7 +15,7 @@ async function getJobs() {
     }
 }
 
-export default async function JobsPage() {
+export default async function WorkerJobsPage() {
     const jobs = await getJobs()
 
     return (

@@ -1,11 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import type { InviteFormProps } from '@/types'
 import { useRouter } from 'next/navigation'
-
-interface InviteFormProps {
-    groupId: number
-}
+import { useState } from 'react'
 
 export function InviteForm({ groupId }: InviteFormProps) {
     const [formData, setFormData] = useState({

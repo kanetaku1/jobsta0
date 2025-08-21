@@ -1,6 +1,5 @@
-import React from 'react';
 
-const groups = () => {
+const WorkerGroupsPage = () => {
     return (
         <div className="groups">
             <h2>groups</h2>
@@ -8,4 +7,4 @@ const groups = () => {
     );
 };
 
-export default groups;
+export default WorkerGroupsPage;

@@ -1,14 +1,22 @@
+// 基本的なエンティティ型定義
+
+// ユーザー関連
 export interface User {
   id: number
   email: string
   name: string | null
   avatar: string | null
+  userType: 'WORKER' | 'EMPLOYER'
   phone: string | null
   address: string | null
   emergencyContact: string | null
+  companyName?: string | null
+  companyAddress?: string | null
+  companyPhone?: string | null
   createdAt: Date
 }
 
+// 求人関連
 export interface Job {
   id: number
   title: string
@@ -16,7 +24,23 @@ export interface Job {
   wage: number
   jobDate: Date
   maxMembers: number
+  status: JobStatus
+  location?: string | null
+  requirements?: string | null
+  creatorId: number
   createdAt: Date
+}
+
+// グループ関連
+export interface Group {
+  id: number
+  name: string
+  waitingRoomId: number
+  leaderId: number
+  createdAt: Date
+  leader: User
+  members: GroupMember[]
+  applications: Application[]
 }
 
 export interface GroupMember {
@@ -28,151 +52,32 @@ export interface GroupMember {
   user: User
 }
 
-// 循環参照を避けるために、基本的な型定義
-export interface GroupBase {
-  id: number
-  name: string
-  waitingRoomId: number
-  leaderId: number
-  createdAt: Date
-  leader: User
-  members: GroupMember[]
-}
-
-export interface WaitingRoomBase {
+// 待機ルーム関連（基本型）
+export interface WaitingRoom {
   id: number
   jobId: number
   createdAt: Date
   isOpen: boolean
   maxGroups: number
+}
+
+// 待機ルーム関連（拡張型）
+export interface WaitingRoomWithRelations extends WaitingRoom {
   job: Job
+  groups: Group[]
 }
 
-// 完全な型定義（循環参照なし）
-export interface Group extends GroupBase {
-  waitingRoom: WaitingRoomBase
-}
-
-export interface WaitingRoom extends WaitingRoomBase {
-  groups: GroupBase[]
-}
-
-export type MemberStatus = 'PENDING' | 'APPLYING' | 'NOT_APPLYING'
-export type ApplicationStatus = 'SUBMITTED' | 'APPROVED' | 'REJECTED'
-
+// 応募関連
 export interface Application {
   id: number
   groupId: number
   submittedAt: Date
   status: ApplicationStatus
   isConfirmed: boolean
-  group: Group
 }
 
-// Prismaの戻り値と一致する型定義
-export interface WaitingRoomWithGroups extends Omit<WaitingRoom, 'groups'> {
-  groups: (GroupBase & {
-    _count: {
-      members: number
-    }
-  })[]
-}
-
-export interface GroupWithDetails extends GroupBase {
-  _count?: {
-    members: number
-  }
-}
-
-// Prismaのinclude結果と一致する型定義
-export interface JobWithWaitingRoom extends Job {
-  waitingRoom: {
-    groups: {
-      _count: {
-        members: number
-      }
-    }[]
-  } | null
-}
-
-// 待機ルーム取得時の型定義
-export interface WaitingRoomWithMembers extends WaitingRoomBase {
-  groups: {
-    id: number
-    name: string
-    waitingRoomId: number
-    leaderId: number
-    createdAt: Date
-    leader: {
-      id: number
-      name: string | null
-      avatar: string | null
-    }
-    members: {
-      id: number
-      groupId: number
-      userId: number
-      status: MemberStatus
-      joinedAt: Date
-      user: {
-        id: number
-        name: string | null
-        avatar: string | null
-        phone: string | null
-        address: string | null
-        emergencyContact: string | null
-      }
-    }[]
-  }[]
-}
-
-export interface JobWithWaitingRoomDetails extends Job {
-  waitingRoom: {
-    groups: {
-      leader: {
-        id: number
-        name: string | null
-        avatar: string | null
-      }
-      members: {
-        user: {
-          id: number
-          name: string | null
-          avatar: string | null
-        }
-      }[]
-      _count: {
-        members: number
-      }
-    }[]
-  } | null
-}
-
-// GroupServiceの戻り値と一致する型定義
-export interface WaitingRoomWithProcessedGroups extends Omit<WaitingRoom, 'groups'> {
-  groups: {
-    id: number
-    name: string
-    waitingRoomId: number
-    leaderId: number
-    createdAt: Date
-    leader: {
-      id: number
-      name: string | null
-      avatar: string | null
-    }
-    members: {
-      id: number
-      status: MemberStatus
-      user: {
-        id: number
-        name: string
-        avatar: string | null
-      }
-    }[]
-    memberCount: number
-    _count: {
-      members: number
-    }
-  }[]
-}
+// 列挙型
+export type JobStatus = 'ACTIVE' | 'PAUSED' | 'CLOSED' | 'COMPLETED'
+export type MemberStatus = 'PENDING' | 'APPLYING' | 'NOT_APPLYING'
+export type ApplicationStatus = 'SUBMITTED' | 'APPROVED' | 'REJECTED'
+export type UserType = 'WORKER' | 'EMPLOYER'

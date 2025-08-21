@@ -1,9 +1,5 @@
-import { Job } from '@/types/group'
+import type { JobCardProps } from '@/types'
 import Link from 'next/link'
-
-type JobCardProps = {
-    job: Job
-}
 
 export function JobCard({ job }: JobCardProps) {
     return (
@@ -13,7 +9,7 @@ export function JobCard({ job }: JobCardProps) {
             <p className="text-gray-500">日程: {new Date(job.jobDate).toDateString()}</p>
             <div className="mt-3">
                 <Link
-                    href={`/jobs/${job.id}`}
+                    href={`/worker/jobs/${job.id}`}
                     className="text-blue-600 hover:underline"
                 >
                     詳細を見る
