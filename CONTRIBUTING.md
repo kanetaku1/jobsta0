@@ -98,6 +98,29 @@ git pull origin dev
 git checkout -b feature/新機能名
 ```
 
+### 2. 開発・テスト
+
+```bash
+# 開発サーバーを起動
+npm run dev
+
+# 実際のデータベースでテスト
+# 機能の動作確認、統合テストを実施
+```
+
+### 3. コード品質チェック
+
+```bash
+# リンター実行
+npm run lint
+
+# 型チェック
+npm run type-check
+
+# フォーマットチェック
+npm run format:check
+```
+
 ### 2. 開発作業
 
 - 機能を実装

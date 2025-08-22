@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { Group, CreateGroupInput } from '@/types/group';
+import { CreateGroupInput, Group } from '@/types/group';
 
 export class GroupService {
   /**
