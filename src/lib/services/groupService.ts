@@ -1,5 +1,23 @@
 import { prisma } from '@/lib/prisma';
-import { Group, CreateGroupInput } from '@/types/group';
+import { CreateGroupInput, Group } from '@/types/group';
+
+// CI環境用のモックデータ
+const mockGroups: Group[] = [
+  {
+    id: 1,
+    name: 'モックグループ1',
+    jobId: 1,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+  {
+    id: 2,
+    name: 'モックグループ2',
+    jobId: 2,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  },
+];
 
 export class GroupService {
   /**
