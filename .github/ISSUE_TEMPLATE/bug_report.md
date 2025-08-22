@@ -1,35 +1,34 @@
-name: 🐛 バグ報告
-description: バグを報告して修正を依頼する
-title: "[BUG] "
-labels: [bug]
-assignees: ''
+## 🐛 バグの報告
 
-body:
-  - type: textarea
-    id: what-happened
-    attributes:
-      label: 問題の内容
-      description: 何が起きたか、どのように再現できるかを詳しく記述してください
-      placeholder: 例）ログインボタンを押しても反応しない
-    validations:
-      required: true
+### バグの概要
+<!-- バグの内容を簡潔に説明してください -->
 
-  - type: textarea
-    id: expected
-    attributes:
-      label: 期待する挙動
-      placeholder: 例）ログインに成功し、マイページに遷移する
-    validations:
-      required: true
+### 再現手順
+1. '...' に移動
+2. '....' をクリック
+3. '....' までスクロール
+4. エラーが発生
 
-  - type: input
-    id: browser
-    attributes:
-      label: 使用環境（ブラウザやOS）
-      placeholder: 例）Chrome 114, iOS 17
+### 期待される動作
+<!-- 正常な場合に期待される動作を説明してください -->
 
-  - type: input
-    id: related
-    attributes:
-      label: 関連Issue/PR
-      placeholder: #123
+### 実際の動作
+<!-- 実際に発生した動作を説明してください -->
+
+### スクリーンショット
+<!-- 可能であれば、スクリーンショットを添付してください -->
+
+### 環境情報
+- **OS**: [例: Windows 10, macOS 12.0]
+- **ブラウザ**: [例: Chrome 120.0, Safari 16.0]
+- **デバイス**: [例: PC, スマートフォン]
+
+### その他の情報
+<!-- バグに関連するその他の情報があれば記載してください -->
+
+---
+
+**テンプレートの使い方**
+- [ ] 上記の項目を適切に記入してください
+- [ ] 再現手順は具体的に記載してください
+- [ ] スクリーンショットがあると問題の特定が早くなります
