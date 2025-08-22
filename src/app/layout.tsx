@@ -1,11 +1,11 @@
-import '@/styles/globals.css'
-import { ReactNode } from 'react'
-import { Header } from '@/components/Header'
+import '@/styles/globals.css';
+import { ReactNode } from 'react';
+import { Header } from '@/components/Header';
 
 export const metadata = {
   title: 'Jobsta',
   description: '友達と応募できる短期バイトマッチングアプリ',
-}
+};
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
@@ -15,5 +15,5 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <main className="max-w-4xl mx-auto p-4">{children}</main>
       </body>
     </html>
-  )
+  );
 }

@@ -7,16 +7,19 @@
 ### 方法1: Dockerを使った簡単セットアップ（推奨）
 
 #### 1. Dockerのインストール
+
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) をダウンロードしてインストール
 - インストール後、Docker Desktopを起動
 
 #### 2. リポジトリをクローン
+
 ```bash
 git clone https://github.com/kanetaku1/jobsta0.git
 cd jobsta0
 ```
 
 #### 3. 環境変数を設定
+
 `.env.local.example`をコピーして`.env.local`を作成し、Supabaseなどのキーを設定してください。
 
 ```bash
@@ -24,6 +27,7 @@ cp .env.local.example .env.local
 ```
 
 #### 4. Dockerで開発環境を起動
+
 ```bash
 docker-compose up --build
 ```
@@ -31,6 +35,7 @@ docker-compose up --build
 これだけで開発環境が起動します！ブラウザで http://localhost:3000 にアクセスしてください。
 
 #### 5. 開発環境の停止
+
 ```bash
 docker-compose down
 ```
@@ -38,12 +43,14 @@ docker-compose down
 ### 方法2: 従来のセットアップ
 
 #### 1. リポジトリをクローン
+
 ```bash
 git clone https://github.com/kanetaku1/jobsta0.git
 cd jobsta0
 ```
 
 #### 2. 環境変数を設定
+
 `.env.local.example`をコピーして`.env.local`を作成し、Supabaseなどのキーを設定してください。
 
 ```bash
@@ -51,11 +58,13 @@ cp .env.local.example .env.local
 ```
 
 #### 3. パッケージをインストール
+
 ```bash
 npm install
 ```
 
 #### 4. ローカルサーバー起動
+
 ```bash
 npm run dev
 ```
@@ -68,6 +77,7 @@ npm run dev
 - **データベース**: PostgreSQLも自動で起動
 
 ## 📁 フォルダ構成
+
 ```
 /src
   ├── app/          # 画面ルーティング
@@ -78,6 +88,7 @@ npm run dev
 ```
 
 ## 🛠 使用技術
+
 - **Frontend**: Next.js 14, TypeScript
 - **Styling**: TailwindCSS
 - **Database**: PostgreSQL (Prisma)
@@ -87,12 +98,14 @@ npm run dev
 ## 👥 チーム開発ルール
 
 ### ブランチ戦略
+
 - **main**: 本番環境用（直接編集禁止）
 - **dev**: 開発用の統合ブランチ
 - **feature/xxx**: 新機能開発用
 - **bugfix/xxx**: バグ修正用
 
 ### 開発の流れ
+
 1. **ブランチ作成**: `git checkout -b feature/新機能名`
 2. **コーディング**: 機能を実装
 3. **コミット**: `git commit -m "feat: 新機能の説明"`
@@ -102,6 +115,7 @@ npm run dev
 7. **マージ**: 承認後にdevブランチに統合
 
 ### コミットメッセージのルール
+
 - `feat:` - 新機能
 - `fix:` - バグ修正
 - `docs:` - ドキュメント更新
@@ -111,6 +125,7 @@ npm run dev
 ## 🔧 よくあるトラブルと解決方法
 
 ### Docker関連
+
 ```bash
 # コンテナが起動しない場合
 docker-compose down
@@ -127,11 +142,13 @@ docker-compose -f docker-compose.simple.yml up --build
 ```
 
 ### Dockerが起動しない場合
+
 1. **Docker Desktopの再起動**
    - Docker Desktopを完全に終了して再起動
    - 起動完了まで数分待つ
 
 2. **従来の環境構築を使用**
+
    ```bash
    npm install
    npm run dev
@@ -142,6 +159,7 @@ docker-compose -f docker-compose.simple.yml up --build
    - Docker Desktopの設定で「Use WSL 2 based engine」が有効
 
 ### データベース関連
+
 ```bash
 # データベースのリセット
 docker-compose down -v
