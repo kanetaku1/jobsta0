@@ -1,63 +1,35 @@
-export type Group = {
-  id: number;
-  name: string;
-  waitingRoomId: number;
-  leaderId: number;
-  createdAt: Date;
+import type {
+  Application as PrismaApplication,
+  Group as PrismaGroup,
+  GroupUser as PrismaGroupUser,
+  Job as PrismaJob,
+  User as PrismaUser,
+  WaitingRoom as PrismaWaitingRoom
+} from '@prisma/client';
+
+// Prismaの型を直接使用
+export type Group = PrismaGroup & {
   waitingRoom?: WaitingRoom;
   leader?: User;
   members?: GroupUser[];
   applications?: Application[];
 };
 
-export type GroupUser = {
-  id: number;
-  groupId: number;
-  userId: number;
-  status: MemberStatus;
-  joinedAt: Date;
+export type GroupUser = PrismaGroupUser & {
   group?: Group;
   user?: User;
 };
 
-export type User = {
-  id: number;
-  email: string;
-  name: string | null;
-  avatar: string | null;
-  createdAt: Date;
-  phone: string | null;
-  address: string | null;
-  emergencyContact: string | null;
-};
+export type User = PrismaUser;
 
-export type Application = {
-  id: number;
-  groupId: number;
-  submittedAt: Date;
-  status: ApplicationStatus;
-  isConfirmed: boolean;
-};
+export type Application = PrismaApplication;
 
-export type WaitingRoom = {
-  id: number;
-  jobId: number;
-  createdAt: Date;
-  isOpen: boolean;
-  maxGroups: number;
+export type WaitingRoom = PrismaWaitingRoom & {
   job?: Job;
   groups?: Group[];
 };
 
-export type Job = {
-  id: number;
-  title: string;
-  description: string | null;
-  wage: number;
-  jobDate: Date;
-  maxMembers: number;
-  createdAt: Date;
-};
+export type Job = PrismaJob;
 
 export type CreateGroupInput = {
   name: string;
@@ -73,14 +45,20 @@ export type WaitingRoomWithMembers = WaitingRoom & {
   })[];
 };
 
-export enum MemberStatus {
-  PENDING = 'PENDING',
-  APPLYING = 'APPLYING',
-  NOT_APPLYING = 'NOT_APPLYING'
-}
+// Prismaのincludeを使用した場合の戻り値の型
+export type GroupWithRelations = PrismaGroup & {
+  leader: User;
+  members: (PrismaGroupUser & {
+    user: User;
+  })[];
+  applications: PrismaApplication[];
+  waitingRoom: PrismaWaitingRoom & {
+    job: PrismaJob;
+  };
+};
 
-export enum ApplicationStatus {
-  SUBMITTED = 'SUBMITTED',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED'
-}
+// Prismaのenumを直接使用
+export type MemberStatus = import('@prisma/client').$Enums.MemberStatus;
+export type ApplicationStatus = import('@prisma/client').$Enums.ApplicationStatus;
+export type UserType = import('@prisma/client').$Enums.UserType;
+export type JobStatus = import('@prisma/client').$Enums.JobStatus;

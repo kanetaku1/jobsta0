@@ -1,4 +1,4 @@
-import { getWaitingRoom } from '@/app/actions';
+import { getWaitingRoom } from '@/app/worker/actions';
 import { Button } from '@/components/common';
 import { JobDetailCard } from '@/components/features/dashboard';
 import { JobService } from '@/lib/services/jobService';

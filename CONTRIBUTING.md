@@ -123,8 +123,6 @@ npm run lint
 # 型チェック
 npm run type-check
 
-# フォーマットチェック
-npm run format:check
 ```
 
 ### 2. 開発作業

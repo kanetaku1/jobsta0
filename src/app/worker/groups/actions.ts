@@ -10,15 +10,16 @@ import { redirect } from 'next/navigation';
 export async function createGroupForJob(waitingRoomId: number, groupName: string, leaderId: number) {
   try {
     // グループ名の重複チェック
-    const isNameAvailable = await GroupService.isGroupNameAvailable(
-      groupName,
-      waitingRoomId
-    );
+    const isNameAvailable = await GroupService.isGroupNameAvailable(groupName);
     if (!isNameAvailable) {
       throw new Error('このグループ名は既に使用されています');
     }
 
-    const group = await GroupService.createGroup(waitingRoomId, groupName, leaderId);
+    const group = await GroupService.createGroup({
+      jobId: waitingRoomId,
+      name: groupName,
+      leaderId,
+    });
 
     // 関連するページのキャッシュを再検証
     revalidatePath(`/jobs/${waitingRoomId}`);
@@ -42,15 +43,16 @@ export async function createAndJoinWaitingRoom(
 ) {
   try {
     // グループ名の重複チェック
-    const isNameAvailable = await GroupService.isGroupNameAvailable(
-      groupName,
-      waitingRoomId
-    );
+    const isNameAvailable = await GroupService.isGroupNameAvailable(groupName);
     if (!isNameAvailable) {
       throw new Error('このグループ名は既に使用されています');
     }
 
-    const group = await GroupService.createGroup(waitingRoomId, groupName, leaderId);
+    const group = await GroupService.createGroup({
+      jobId: waitingRoomId,
+      name: groupName,
+      leaderId,
+    });
 
     // 関連するページのキャッシュを再検証
     revalidatePath(`/jobs/${waitingRoomId}`);
@@ -69,7 +71,7 @@ export async function createAndJoinWaitingRoom(
  */
 export async function addUserToGroupByInvite(groupId: number, userId: number) {
   try {
-    await GroupService.addMember(groupId, userId);
+    await GroupService.addMember({ groupId, userId });
 
     // 関連するページのキャッシュを再検証
     revalidatePath(`/groups/${groupId}`);

@@ -1,19 +1,13 @@
 "use client"
 
 import { Button } from '@/components/common/buttons/Button'
+import type { PersonalInfoFormProps } from '@/types'
 import { useState } from 'react'
 
 interface PersonalInfo {
   phone: string
   address: string
   emergencyContact: string
-}
-
-interface PersonalInfoFormProps {
-  userId: number
-  onSubmit: (info: PersonalInfo) => Promise<void>
-  onCancel: () => void
-  initialData?: Partial<PersonalInfo>
 }
 
 export default function PersonalInfoForm({

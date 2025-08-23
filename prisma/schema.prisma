@@ -13,6 +13,7 @@ model User {
   email     String      @unique
   name      String?
   avatar    String?     // アバター画像のURL
+  userType  UserType    @default(WORKER) // ユーザー種別
   createdAt DateTime    @default(now())
   groups    GroupUser[]
   groupLeaderships Group[] @relation("GroupLeader")
@@ -20,6 +21,12 @@ model User {
   phone     String?     // 電話番号
   address   String?     // 住所
   emergencyContact String? // 緊急連絡先
+  // 雇用主情報
+  companyName String?   // 会社名
+  companyAddress String? // 会社住所
+  companyPhone String?   // 会社電話番号
+  // 作成した求人
+  createdJobs Job[]      @relation("JobCreator")
 }
 
 model Job {
@@ -30,7 +37,13 @@ model Job {
   jobDate     DateTime
   maxMembers  Int      @default(10) // 募集人数
   createdAt   DateTime @default(now())
+  creator     User    @relation("JobCreator", fields: [creatorId], references: [id])
+  creatorId   Int
   waitingRoom WaitingRoom?
+  // 求人の状態
+  status      JobStatus @default(ACTIVE) // 求人の状態
+  location    String?   // 勤務地
+  requirements String?  // 応募要件
 }
 
 // 応募待機ルーム
@@ -79,6 +92,18 @@ model Application {
   status      ApplicationStatus  @default(SUBMITTED)
   // 本応募時の追加情報
   isConfirmed Boolean            @default(false) // 全員の個人情報が登録済みか
+}
+
+enum UserType {
+  WORKER      // 労働者
+  EMPLOYER    // 雇用主
+}
+
+enum JobStatus {
+  ACTIVE      // 募集中
+  PAUSED      // 一時停止
+  CLOSED      // 募集終了
+  COMPLETED   // 完了
 }
 
 enum MemberStatus {

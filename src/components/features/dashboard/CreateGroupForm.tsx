@@ -1,13 +1,8 @@
 'use client';
 
-import { createGroupForJob } from '@/app/groups/actions';
-import { useState } from 'react';
-
-interface CreateGroupFormProps {
-  jobId: number;
-  onGroupCreated?: () => void;
-  className?: string;
-}
+import { createGroupForJob } from '@/app/worker/groups/actions'
+import type { CreateGroupFormProps } from '@/types'
+import { useState } from 'react'
 
 export function CreateGroupForm({
   jobId,

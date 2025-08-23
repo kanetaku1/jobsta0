@@ -1,12 +1,8 @@
 'use client';
 
-import { createGroupForJob } from '@/app/groups/actions';
-import { useState } from 'react';
-
-interface CreateGroupButtonProps {
-  jobId: number;
-  className?: string;
-}
+import { createGroupForJob } from '@/app/worker/groups/actions';
+import type { CreateGroupButtonProps } from '@/types'
+import { useState } from 'react'
 
 export default function CreateGroupButton({
   jobId,
