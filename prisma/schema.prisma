@@ -9,111 +9,104 @@ datasource db {
 }
 
 model User {
-  id        Int         @id @default(autoincrement())
-  email     String      @unique
-  name      String?
-  avatar    String?     // アバター画像のURL
-  userType  UserType    @default(WORKER) // ユーザー種別
-  createdAt DateTime    @default(now())
-  groups    GroupUser[]
-  groupLeaderships Group[] @relation("GroupLeader")
-  // 個人情報登録用フィールド
-  phone     String?     // 電話番号
-  address   String?     // 住所
-  emergencyContact String? // 緊急連絡先
-  // 雇用主情報
-  companyName String?   // 会社名
-  companyAddress String? // 会社住所
-  companyPhone String?   // 会社電話番号
-  // 作成した求人
-  createdJobs Job[]      @relation("JobCreator")
+  email            String      @unique
+  name             String?
+  createdAt        DateTime    @default(now())
+  id               Int         @id @default(autoincrement())
+  avatar           String?
+  address          String?
+  emergencyContact String?
+  phone            String?
+  companyAddress   String?
+  companyName      String?
+  companyPhone     String?
+  userType         UserType    @default(WORKER)
+  groupLeaderships Group[]     @relation("GroupLeader")
+  groups           GroupUser[]
+  createdJobs      Job[]       @relation("JobCreator")
 }
 
 model Job {
-  id          Int      @id @default(autoincrement())
-  title       String
-  description String?
-  wage        Int
-  jobDate     DateTime
-  maxMembers  Int      @default(10) // 募集人数
-  createdAt   DateTime @default(now())
-  creator     User    @relation("JobCreator", fields: [creatorId], references: [id])
-  creatorId   Int
-  waitingRoom WaitingRoom?
-  // 求人の状態
-  status      JobStatus @default(ACTIVE) // 求人の状態
-  location    String?   // 勤務地
-  requirements String?  // 応募要件
+  title        String
+  description  String?
+  wage         Int
+  jobDate      DateTime
+  createdAt    DateTime     @default(now())
+  id           Int          @id @default(autoincrement())
+  maxMembers   Int          @default(10)
+  creatorId    Int
+  location     String?
+  requirements String?
+  status       JobStatus    @default(ACTIVE)
+  creator      User         @relation("JobCreator", fields: [creatorId], references: [id])
+  waitingRoom  WaitingRoom?
 }
 
-// 応募待機ルーム
 model WaitingRoom {
   id        Int      @id @default(autoincrement())
-  job       Job      @relation(fields: [jobId], references: [id])
-  jobId     Int      @unique // 一つの仕事に対して一つの応募待機ルーム
+  jobId     Int      @unique
   createdAt DateTime @default(now())
+  isOpen    Boolean  @default(true)
+  maxGroups Int      @default(5)
   groups    Group[]
-  // 応募待機ルームの状態
-  isOpen    Boolean  @default(true) // 応募受付中かどうか
-  maxGroups Int      @default(5)    // 最大グループ数
+  job       Job      @relation(fields: [jobId], references: [id])
 }
 
 model Group {
-  id           Int           @id @default(autoincrement())
-  name         String
-  waitingRoom  WaitingRoom  @relation(fields: [waitingRoomId], references: [id])
+  createdAt     DateTime      @default(now())
+  id            Int           @id @default(autoincrement())
+  name          String
+  leaderId      Int
   waitingRoomId Int
-  leader       User          @relation("GroupLeader", fields: [leaderId], references: [id])
-  leaderId     Int
-  createdAt    DateTime      @default(now())
-  members      GroupUser[]
-  applications Application[]
-  
-  @@unique([waitingRoomId, name]) // 同一応募待機ルーム内でグループ名は一意
+  applications  Application[]
+  leader        User          @relation("GroupLeader", fields: [leaderId], references: [id])
+  waitingRoom   WaitingRoom   @relation(fields: [waitingRoomId], references: [id])
+  members       GroupUser[]
+
+  @@unique([waitingRoomId, name])
 }
 
 model GroupUser {
   id       Int          @id @default(autoincrement())
-  group    Group        @relation(fields: [groupId], references: [id])
   groupId  Int
-  user     User         @relation(fields: [userId], references: [id])
   userId   Int
-  status   MemberStatus @default(PENDING) // 応募ステータス
   joinedAt DateTime     @default(now())
-  
+  status   MemberStatus @default(PENDING)
+  group    Group        @relation(fields: [groupId], references: [id])
+  user     User         @relation(fields: [userId], references: [id])
+
   @@unique([groupId, userId])
 }
 
 model Application {
-  id          Int                @id @default(autoincrement())
-  group       Group              @relation(references: [id], fields: [groupId])
-  submittedAt DateTime           @default(now())
+  submittedAt DateTime          @default(now())
+  id          Int               @id @default(autoincrement())
   groupId     Int
-  status      ApplicationStatus  @default(SUBMITTED)
-  // 本応募時の追加情報
-  isConfirmed Boolean            @default(false) // 全員の個人情報が登録済みか
+  status      ApplicationStatus @default(SUBMITTED)
+  isConfirmed Boolean           @default(false)
+  group       Group             @relation(fields: [groupId], references: [id])
 }
 
 enum UserType {
-  WORKER      // 労働者
-  EMPLOYER    // 雇用主
+  WORKER
+  EMPLOYER
 }
 
 enum JobStatus {
-  ACTIVE      // 募集中
-  PAUSED      // 一時停止
-  CLOSED      // 募集終了
-  COMPLETED   // 完了
+  ACTIVE
+  PAUSED
+  CLOSED
+  COMPLETED
 }
 
 enum MemberStatus {
-  PENDING     // 検討中
-  APPLYING    // 応募する
-  NOT_APPLYING // 応募しない
+  PENDING
+  APPLYING
+  NOT_APPLYING
 }
 
 enum ApplicationStatus {
-  SUBMITTED   // 提出済み
-  APPROVED    // 承認済み
-  REJECTED    // 却下
+  SUBMITTED
+  APPROVED
+  REJECTED
 }
