@@ -1,22 +1,24 @@
 import { prisma } from '@/lib/prisma';
-import { CreateGroupInput, Group } from '@/types/group';
+import { Group, MemberStatus, WaitingRoom, WaitingRoomWithMembers } from '@/types/group';
 
 export class GroupService {
   /**
    * グループを作成する
    */
-  static async createGroup(data: CreateGroupInput): Promise<Group> {
+  static async createGroup(waitingRoomId: number, name: string, leaderId: number): Promise<Group> {
     try {
       const group = await prisma.group.create({
         data: {
-          name: data.name,
-          jobId: data.jobId,
+          name,
+          waitingRoomId,
+          leaderId,
         },
         include: {
-          job: true,
+          waitingRoom: true,
+          leader: true,
         },
       });
-      return group;
+      return group as Group;
     } catch (error) {
       console.error('Failed to create group:', error);
       throw new Error('グループの作成に失敗しました');
@@ -26,12 +28,13 @@ export class GroupService {
   /**
    * グループをIDで取得する
    */
-  static async getGroupById(id: number): Promise<Group | null> {
+  static async getGroup(id: number): Promise<Group | null> {
     try {
       const group = await prisma.group.findUnique({
         where: { id },
         include: {
-          job: true,
+          waitingRoom: true,
+          leader: true,
           members: {
             include: {
               user: true,
@@ -40,7 +43,7 @@ export class GroupService {
           applications: true,
         },
       });
-      return group;
+      return group as Group;
     } catch (error) {
       console.error('Failed to fetch group:', error);
       throw new Error('グループの取得に失敗しました');
@@ -53,7 +56,9 @@ export class GroupService {
   static async getGroupsByJobId(jobId: number): Promise<Group[]> {
     try {
       const groups = await prisma.group.findMany({
-        where: { jobId },
+        where: { 
+          waitingRoom: { jobId } 
+        },
         include: {
           members: {
             include: {
@@ -66,7 +71,7 @@ export class GroupService {
           createdAt: 'desc',
         },
       });
-      return groups;
+      return groups as Group[];
     } catch (error) {
       console.error('Failed to fetch groups by job:', error);
       throw new Error('求人に関連するグループの取得に失敗しました');
@@ -85,7 +90,7 @@ export class GroupService {
         where: {
           userId,
           group: {
-            jobId,
+            waitingRoom: { jobId },
           },
         },
       });
@@ -99,18 +104,20 @@ export class GroupService {
   /**
    * ユーザーをグループに追加する
    */
-  static async addUserToGroup(groupId: number, userId: number): Promise<void> {
+  static async addMember(groupId: number, userId: number): Promise<void> {
     try {
       // ユーザーが既にその求人に参加していないかチェック
       const group = await prisma.group.findUnique({
         where: { id: groupId },
-        select: { jobId: true },
+        include: {
+          waitingRoom: true,
+        },
       });
 
       if (group) {
         const isAlreadyInJob = await this.isUserAlreadyInJob(
           userId,
-          group.jobId
+          group.waitingRoom.jobId
         );
         if (isAlreadyInJob) {
           throw new Error('この求人には既に参加しています');
@@ -130,9 +137,87 @@ export class GroupService {
   }
 
   /**
+   * メンバーのステータスを更新する
+   */
+  static async updateStatus(groupId: number, userId: number, status: MemberStatus): Promise<void> {
+    try {
+      await prisma.groupUser.update({
+        where: {
+          groupId_userId: {
+            groupId,
+            userId,
+          },
+        },
+        data: {
+          status,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to update member status:', error);
+      throw new Error('メンバーステータスの更新に失敗しました');
+    }
+  }
+
+  /**
+   * 応募待機ルームを作成する
+   */
+  static async createWaitingRoom(jobId: number): Promise<WaitingRoom> {
+    try {
+      const waitingRoom = await prisma.waitingRoom.create({
+        data: {
+          jobId,
+        },
+        include: {
+          job: true,
+          groups: {
+            include: {
+              members: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      return waitingRoom as WaitingRoom;
+    } catch (error) {
+      console.error('Failed to create waiting room:', error);
+      throw new Error('応募待機ルームの作成に失敗しました');
+    }
+  }
+
+  /**
+   * 応募待機ルームを取得する
+   */
+  static async getWaitingRoom(jobId: number): Promise<WaitingRoomWithMembers | null> {
+    try {
+      const waitingRoom = await prisma.waitingRoom.findUnique({
+        where: { jobId },
+        include: {
+          job: true,
+          groups: {
+            include: {
+              members: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      return waitingRoom as WaitingRoomWithMembers;
+    } catch (error) {
+      console.error('Failed to fetch waiting room:', error);
+      throw new Error('応募待機ルームの取得に失敗しました');
+    }
+  }
+
+  /**
    * グループに応募する
    */
-  static async applyToGroup(groupId: number): Promise<void> {
+  static async submitApplication(groupId: number, userId: number): Promise<void> {
     try {
       await prisma.application.create({
         data: {
@@ -150,13 +235,13 @@ export class GroupService {
    */
   static async isGroupNameAvailable(
     name: string,
-    jobId: number
+    waitingRoomId: number
   ): Promise<boolean> {
     try {
       const existingGroup = await prisma.group.findFirst({
         where: {
           name,
-          jobId,
+          waitingRoomId,
         },
       });
       return !existingGroup;

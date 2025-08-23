@@ -1,12 +1,11 @@
-import React from 'react';
+import { WaitingRoom } from '@/components/WaitingRoom';
 import { GroupService } from '@/lib/services/groupService';
 import { notFound } from 'next/navigation';
-import { WaitingRoom } from '@/components/WaitingRoom';
 
 async function getGroupDetail(id: string) {
   try {
-    const group = await GroupService.getGroupById(parseInt(id));
-    if (!group || !group.job) {
+    const group = await GroupService.getGroup(parseInt(id));
+    if (!group || !group.waitingRoom?.job) {
       notFound();
     }
     return group;
@@ -30,7 +29,7 @@ export default async function GroupDetailPage({
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           応募待機ルーム
         </h1>
-        <p className="text-gray-600">求人: {group.job!.title}</p>
+        <p className="text-gray-600">求人: {group.waitingRoom!.job!.title}</p>
       </div>
 
       <WaitingRoom group={group} />

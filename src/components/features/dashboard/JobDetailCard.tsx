@@ -1,14 +1,15 @@
 'use client'
 
 import { Button } from '@/components/common/buttons/Button'
-import { Job } from '@/types/group'
+import { Group, Job } from '@/types/group'
 import Link from 'next/link'
 
 type JobDetailCardProps = {
     job: Job
+    groups?: Group[]
 }
 
-export function JobDetailCard({ job }: JobDetailCardProps) {
+export function JobDetailCard({ job, groups }: JobDetailCardProps) {
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <h2 className="text-2xl font-semibold mb-4">{job.title}</h2>
@@ -33,6 +34,23 @@ export function JobDetailCard({ job }: JobDetailCardProps) {
                     <p className="text-lg font-semibold">{new Date(job.createdAt).toLocaleDateString('ja-JP')}</p>
                 </div>
             </div>
+
+            {/* グループ情報の表示 */}
+            {groups && groups.length > 0 && (
+                <div className="border-t pt-4 mb-4">
+                    <h3 className="text-lg font-semibold mb-2">参加グループ</h3>
+                    <div className="space-y-2">
+                        {groups.map((group) => (
+                            <div key={group.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <span className="font-medium">{group.name}</span>
+                                <span className="text-sm text-gray-500">
+                                    {group.members?.length || 0}人参加
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* 応募待機ルームへのリンク */}
             <div className="border-t pt-4">

@@ -1,12 +1,11 @@
-import React from 'react';
+import { InviteForm } from '@/components/InviteForm';
 import { GroupService } from '@/lib/services/groupService';
 import { notFound } from 'next/navigation';
-import { InviteForm } from '@/components/InviteForm';
 
 async function getGroupForInvite(groupId: string) {
   try {
-    const group = await GroupService.getGroupById(parseInt(groupId));
-    if (!group || !group.job) {
+    const group = await GroupService.getGroup(parseInt(groupId));
+    if (!group || !group.waitingRoom?.job) {
       notFound();
     }
     return group;
@@ -33,21 +32,21 @@ export default async function InvitePage({
 
       {/* 求人情報 */}
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h2 className="text-2xl font-semibold mb-4">{group.job!.title}</h2>
-        {group.job!.description && (
-          <p className="text-gray-600 mb-4">{group.job!.description}</p>
+        <h2 className="text-2xl font-semibold mb-4">{group.waitingRoom!.job!.title}</h2>
+        {group.waitingRoom!.job!.description && (
+          <p className="text-gray-600 mb-4">{group.waitingRoom!.job!.description}</p>
         )}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <p className="text-sm text-gray-500">時給</p>
             <p className="text-lg font-semibold text-blue-600">
-              {group.job!.wage.toLocaleString()}円
+              {group.waitingRoom!.job!.wage.toLocaleString()}円
             </p>
           </div>
           <div>
             <p className="text-sm text-gray-500">勤務日</p>
             <p className="text-lg font-semibold">
-              {new Date(group.job!.jobDate).toLocaleDateString('ja-JP')}
+              {new Date(group.waitingRoom!.job!.jobDate).toLocaleDateString('ja-JP')}
             </p>
           </div>
         </div>

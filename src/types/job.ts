@@ -5,4 +5,5 @@ export type Job = {
   description: string | null;
   wage: number;
   jobDate: Date;
+  maxMembers: number;
 };

@@ -1,18 +1,16 @@
 'use client';
 
-'use client';
-
-import { Job } from '@/types/job';
+import { createAndJoinWaitingRoom } from '@/app/groups/actions';
+import { CreateGroupForm } from '@/components/features/dashboard/CreateGroupForm';
 import { Group } from '@/types/group';
-import { useState } from 'react';
+import { Job } from '@/types/job';
 import { useRouter } from 'next/navigation';
 import { QRCodeSVG } from 'qrcode.react';
-import { createAndJoinWaitingRoom } from '@/app/groups/actions';
-import { CreateGroupForm } from './CreateGroupForm';
+import { useState } from 'react';
 
 type JobDetailCardProps = {
   job: Job;
-  groups: Group[];
+  groups?: Group[];
 };
 
 export function JobDetailCard({ job, groups }: JobDetailCardProps) {
@@ -25,7 +23,9 @@ export function JobDetailCard({ job, groups }: JobDetailCardProps) {
   const handleJoinWaitingRoom = async (groupName: string) => {
     try {
       setIsCreating(true);
-      await createAndJoinWaitingRoom(job.id, groupName);
+      // TODO: 実際のユーザーIDを取得する必要があります
+      const currentUserId = 1; // 仮のユーザーID
+      await createAndJoinWaitingRoom(job.id, groupName, currentUserId);
     } catch (error) {
       console.error('グループ作成に失敗しました:', error);
       alert('グループの作成に失敗しました。もう一度お試しください。');
@@ -70,6 +70,23 @@ export function JobDetailCard({ job, groups }: JobDetailCardProps) {
         </div>
       </div>
 
+      {/* グループ情報の表示 */}
+      {groups && groups.length > 0 && (
+        <div className="border-t pt-4 mb-4">
+          <h3 className="text-lg font-medium">参加グループ</h3>
+          <div className="space-y-2">
+            {groups.map((group) => (
+              <div key={group.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="font-medium">{group.name}</span>
+                <span className="text-sm text-gray-500">
+                  {group.members?.length || 0}人参加
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 応募待機ルーム情報 */}
       <div className="border-t pt-4 mb-4">
         <div className="flex items-center justify-between mb-3">
@@ -91,7 +108,7 @@ export function JobDetailCard({ job, groups }: JobDetailCardProps) {
           />
         )}
 
-        {groups.length > 0 ? (
+        {groups && groups.length > 0 ? (
           <div className="space-y-3">
             {groups.map(group => (
               <div
@@ -128,7 +145,7 @@ export function JobDetailCard({ job, groups }: JobDetailCardProps) {
           <p className="text-gray-500 mb-3">まだ応募待機ルームがありません</p>
         )}
 
-        {!showCreateForm && groups.length === 0 && (
+        {!showCreateForm && (!groups || groups.length === 0) && (
           <button
             onClick={() => setShowCreateForm(true)}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"

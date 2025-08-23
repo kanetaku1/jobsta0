@@ -1,8 +1,8 @@
 'use client';
 
 import { Group } from '@/types/group';
-import { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useState } from 'react';
 
 interface WaitingRoomProps {
   group: Group;
@@ -36,18 +36,18 @@ export function WaitingRoom({ group }: WaitingRoomProps) {
         <div className="grid grid-cols-3 gap-4">
           <div>
             <p className="text-sm text-gray-500">タイトル</p>
-            <p className="font-medium">{group.job!.title}</p>
+            <p className="font-medium">{group.waitingRoom?.job?.title || '求人情報なし'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">時給</p>
             <p className="font-medium text-blue-600">
-              {group.job!.wage.toLocaleString()}円
+              {group.waitingRoom?.job?.wage?.toLocaleString() || 0}円
             </p>
           </div>
           <div>
             <p className="text-sm text-gray-500">勤務日</p>
             <p className="font-medium">
-              {new Date(group.job!.jobDate).toLocaleDateString('ja-JP')}
+              {group.waitingRoom?.job?.jobDate ? new Date(group.waitingRoom.job.jobDate).toLocaleDateString('ja-JP') : '未設定'}
             </p>
           </div>
         </div>

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
 import { createGroupForJob } from '@/app/groups/actions';
+import { useState } from 'react';
 
 interface CreateGroupFormProps {
   jobId: number;
@@ -30,7 +30,9 @@ export function CreateGroupForm({
     setError('');
 
     try {
-      await createGroupForJob(jobId, groupName.trim());
+      // TODO: 実際のユーザーIDを取得する必要があります
+      const currentUserId = 1; // 仮のユーザーID
+      await createGroupForJob(jobId, groupName.trim(), currentUserId);
       setGroupName('');
       onGroupCreated?.();
     } catch (error) {
