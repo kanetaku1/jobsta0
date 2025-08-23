@@ -11,7 +11,6 @@ export class JobService {
       include: {
         waitingRoom: {
           include: {
-            job: true,
             groups: {
               include: {
                 _count: { select: { members: true } },
@@ -44,7 +43,6 @@ export class JobService {
         include: {
           waitingRoom: {
             include: {
-              job: true,
               groups: {
                 include: {
                   _count: { select: { members: true } },
