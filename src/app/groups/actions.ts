@@ -7,24 +7,21 @@ import { redirect } from 'next/navigation';
 /**
  * 求人に対してグループを作成する
  */
-export async function createGroupForJob(jobId: number, groupName: string) {
+export async function createGroupForJob(waitingRoomId: number, groupName: string, leaderId: number) {
   try {
     // グループ名の重複チェック
     const isNameAvailable = await GroupService.isGroupNameAvailable(
       groupName,
-      jobId
+      waitingRoomId
     );
     if (!isNameAvailable) {
       throw new Error('このグループ名は既に使用されています');
     }
 
-    const group = await GroupService.createGroup({
-      name: groupName,
-      jobId,
-    });
+    const group = await GroupService.createGroup(waitingRoomId, groupName, leaderId);
 
     // 関連するページのキャッシュを再検証
-    revalidatePath(`/jobs/${jobId}`);
+    revalidatePath(`/jobs/${waitingRoomId}`);
     revalidatePath('/groups');
 
     // 作成されたグループの詳細ページにリダイレクト
@@ -39,26 +36,24 @@ export async function createGroupForJob(jobId: number, groupName: string) {
  * 新規グループを作成して待機ルームに参加する
  */
 export async function createAndJoinWaitingRoom(
-  jobId: number,
-  groupName: string
+  waitingRoomId: number,
+  groupName: string,
+  leaderId: number
 ) {
   try {
     // グループ名の重複チェック
     const isNameAvailable = await GroupService.isGroupNameAvailable(
       groupName,
-      jobId
+      waitingRoomId
     );
     if (!isNameAvailable) {
       throw new Error('このグループ名は既に使用されています');
     }
 
-    const group = await GroupService.createGroup({
-      name: groupName,
-      jobId,
-    });
+    const group = await GroupService.createGroup(waitingRoomId, groupName, leaderId);
 
     // 関連するページのキャッシュを再検証
-    revalidatePath(`/jobs/${jobId}`);
+    revalidatePath(`/jobs/${waitingRoomId}`);
     revalidatePath('/groups');
 
     // 作成されたグループの詳細ページにリダイレクト
@@ -74,7 +69,7 @@ export async function createAndJoinWaitingRoom(
  */
 export async function addUserToGroupByInvite(groupId: number, userId: number) {
   try {
-    await GroupService.addUserToGroup(groupId, userId);
+    await GroupService.addMember(groupId, userId);
 
     // 関連するページのキャッシュを再検証
     revalidatePath(`/groups/${groupId}`);

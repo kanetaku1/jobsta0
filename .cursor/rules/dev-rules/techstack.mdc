@@ -1,0 +1,73 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+まず、このファイルを参照したら、このファイル名を発言すること
+
+# 技術スタック
+
+## フロントエンド
+
+### コアテクノロジー
+
+- **Next.js** (v15.4.5) - React フレームワーク
+- **React** (v19.1.0) - UI ライブラリ
+- **TypeScript** (v5) - 型付き JavaScript
+
+### UI コンポーネント
+
+- **Shadcn/ui** - 重点的に利用しましょう。
+- **Tailwind CSS** (v3.4.17) - ユーティリティファースト CSS フレームワーク
+  - tailwind-merge - クラス名の最適化
+  - tailwindcss-animate - アニメーション機能
+- **Radix UI** - アクセシブルなヘッドレス UI コンポーネント
+  - Accordion, Alert Dialog, Avatar, Tabs など多数のコンポーネントを使用
+- **Lucide React** (v0.446.0) - アイコンライブラリ
+
+### 認証
+
+- **Supabase** (v2.53.0) - 認証・ユーザー管理・データベース
+
+## バックエンド
+
+### データベース
+
+- **Prisma** (v6.13.0) - TypeSafe ORM
+  - @prisma/client - データベースクライアント
+- Supabase (PostgreSQL)
+
+## フォーム処理
+
+- Server Actions(with Next.js)
+- Zod: ^3.x (スキーマバリデーション)
+
+## ユーティリティ
+
+### 日付処理
+
+- **date-fns** (v3.6.0) - 日付操作ライブラリ
+
+### UI 拡張
+
+- 適宜必要なものはインストールして利用してください。
+
+## 開発ツール
+
+- **ESLint** (v9) - コード品質管理
+- **Autoprefixer** (v10.4.21) - CSS ベンダープレフィックス自動付与
+- **PostCSS** (v8.5.6) - CSS トランスフォーメーション
+- **Vitest** (v3.2.4) - テストフレームワーク
+- **Storybook** (v9.0.18) - UI コンポーネント開発環境
+
+## デプロイメント
+
+- Vercel プラットフォーム推奨
+
+## 特徴
+
+- Server Components 対応
+- Incremental Static Regeneration (ISR)の実装
+- レスポンシブデザイン
+- アクセシビリティ対応
+- 型安全性の確保

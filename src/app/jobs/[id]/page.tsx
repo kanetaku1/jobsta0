@@ -1,5 +1,6 @@
-import React from 'react';
-import { JobDetailCard } from '@/components/JobDetailCard';
+import { getWaitingRoom } from '@/app/actions';
+import { Button } from '@/components/common';
+import { JobDetailCard } from '@/components/features/dashboard';
 import { JobService } from '@/lib/services/jobService';
 import { GroupService } from '@/lib/services/groupService';
 import { notFound } from 'next/navigation';

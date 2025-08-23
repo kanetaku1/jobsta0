@@ -1,6 +1,6 @@
-import '@/styles/globals.css';
-import { ReactNode } from 'react';
-import { Header } from '@/components/Header';
+import { Header } from '@/components/common'
+import '@/styles/globals.css'
+import { ReactNode } from 'react'
 
 export const metadata = {
   title: 'Jobsta',

@@ -10,6 +10,7 @@ const mockJobs: Job[] = [
     wage: 1000,
     jobDate: new Date(),
     createdAt: new Date(),
+    maxMembers: 10,
   },
   {
     id: 2,
@@ -18,6 +19,7 @@ const mockJobs: Job[] = [
     wage: 1200,
     jobDate: new Date(),
     createdAt: new Date(),
+    maxMembers: 15,
   },
 ];
 

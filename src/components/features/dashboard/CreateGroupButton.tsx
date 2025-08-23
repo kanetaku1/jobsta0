@@ -17,7 +17,9 @@ export default function CreateGroupButton({
   const handleCreateGroup = async () => {
     try {
       setIsCreating(true);
-      await createGroupForJob(jobId, className);
+      // TODO: 実際のユーザーIDを取得する必要があります
+      const currentUserId = 1; // 仮のユーザーID
+      await createGroupForJob(jobId, className, currentUserId);
     } catch (error) {
       console.error('Failed to create group:', error);
       // エラーハンドリング（必要に応じてトースト表示など）

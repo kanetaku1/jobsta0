@@ -12,8 +12,14 @@ model User {
   id        Int         @id @default(autoincrement())
   email     String      @unique
   name      String?
+  avatar    String?     // アバター画像のURL
   createdAt DateTime    @default(now())
   groups    GroupUser[]
+  groupLeaderships Group[] @relation("GroupLeader")
+  // 個人情報登録用フィールド
+  phone     String?     // 電話番号
+  address   String?     // 住所
+  emergencyContact String? // 緊急連絡先
 }
 
 model Job {
@@ -22,32 +28,67 @@ model Job {
   description String?
   wage        Int
   jobDate     DateTime
+  maxMembers  Int      @default(10) // 募集人数
   createdAt   DateTime @default(now())
-  groups      Group[]
+  waitingRoom WaitingRoom?
+}
+
+// 応募待機ルーム
+model WaitingRoom {
+  id        Int      @id @default(autoincrement())
+  job       Job      @relation(fields: [jobId], references: [id])
+  jobId     Int      @unique // 一つの仕事に対して一つの応募待機ルーム
+  createdAt DateTime @default(now())
+  groups    Group[]
+  // 応募待機ルームの状態
+  isOpen    Boolean  @default(true) // 応募受付中かどうか
+  maxGroups Int      @default(5)    // 最大グループ数
 }
 
 model Group {
   id           Int           @id @default(autoincrement())
   name         String
-  job          Job           @relation(fields: [jobId], references: [id])
-  jobId        Int
+  waitingRoom  WaitingRoom  @relation(fields: [waitingRoomId], references: [id])
+  waitingRoomId Int
+  leader       User          @relation("GroupLeader", fields: [leaderId], references: [id])
+  leaderId     Int
   createdAt    DateTime      @default(now())
   members      GroupUser[]
   applications Application[]
+  
+  @@unique([waitingRoomId, name]) // 同一応募待機ルーム内でグループ名は一意
 }
 
 model GroupUser {
-  id       Int      @id @default(autoincrement())
-  group    Group    @relation(fields: [groupId], references: [id])
+  id       Int          @id @default(autoincrement())
+  group    Group        @relation(fields: [groupId], references: [id])
   groupId  Int
-  user     User     @relation(fields: [userId], references: [id])
+  user     User         @relation(fields: [userId], references: [id])
   userId   Int
-  joinedAt DateTime @default(now())
+  status   MemberStatus @default(PENDING) // 応募ステータス
+  joinedAt DateTime     @default(now())
+  
+  @@unique([groupId, userId])
 }
 
 model Application {
-  id          Int      @id @default(autoincrement())
-  group       Group    @relation(references: [id], fields: [groupId])
-  submittedAt DateTime @default(now())
+  id          Int                @id @default(autoincrement())
+  group       Group              @relation(references: [id], fields: [groupId])
+  submittedAt DateTime           @default(now())
   groupId     Int
+  status      ApplicationStatus  @default(SUBMITTED)
+  // 本応募時の追加情報
+  isConfirmed Boolean            @default(false) // 全員の個人情報が登録済みか
+}
+
+enum MemberStatus {
+  PENDING     // 検討中
+  APPLYING    // 応募する
+  NOT_APPLYING // 応募しない
+}
+
+enum ApplicationStatus {
+  SUBMITTED   // 提出済み
+  APPROVED    // 承認済み
+  REJECTED    // 却下
 }
