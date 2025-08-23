@@ -6,7 +6,7 @@ import type { JobDetailCardProps, WaitingRoomWithFullDetails } from '@/types'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
-export function JobDetailCard({ job }: JobDetailCardProps) {
+export function JobDetailCard({ job, groups }: JobDetailCardProps) {
     const [waitingRoom, setWaitingRoom] = useState<WaitingRoomWithFullDetails | null>(null);
 
     useEffect(() => {

@@ -6,7 +6,11 @@ import { revalidatePath } from 'next/cache'
 
 // グループ作成
 export async function createGroup(waitingRoomId: number, name: string, leaderId: number) {
-  const group = await GroupService.createGroup(waitingRoomId, name, leaderId)
+  const group = await GroupService.createGroup({
+    jobId: waitingRoomId,
+    name,
+    leaderId,
+  })
   revalidatePath(`/jobs/${waitingRoomId}/waiting-room`)
   return group
 }
@@ -23,13 +27,13 @@ export async function getWaitingRoom(jobId: number) {
 
 // メンバー追加
 export async function addMember(groupId: number, userId: number) {
-  await GroupService.addMember(groupId, userId)
+  await GroupService.addMember({ groupId, userId })
   revalidatePath(`/groups/${groupId}`)
 }
 
 // ステータス更新
 export async function updateStatus(groupId: number, userId: number, status: MemberStatus) {
-  await GroupService.updateStatus(groupId, userId, status)
+  await GroupService.updateStatus({ groupId, userId, status })
   revalidatePath(`/groups/${groupId}`)
 }
 
@@ -40,7 +44,7 @@ export async function createWaitingRoom(jobId: number) {
 
 // 応募提出
 export async function submitApplication(groupId: number, userId: number) {
-  await GroupService.submitApplication(groupId, userId)
+  await GroupService.submitApplication({ groupId, userId })
   revalidatePath(`/groups/${groupId}`)
 }
 
@@ -51,6 +55,6 @@ export async function getGroupDetails(id: number) {
 
 // グループ参加
 export async function joinGroup(groupId: number, userId: number) {
-  await GroupService.addMember(groupId, userId)
+  await GroupService.addMember({ groupId, userId })
   revalidatePath(`/groups/${groupId}`)
 }

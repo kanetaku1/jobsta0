@@ -16,6 +16,7 @@ export interface JobCardProps extends BaseComponentProps {
 
 export interface JobDetailCardProps extends BaseComponentProps {
   job: Job
+  groups?: Group[]
   showWaitingRoom?: boolean
 }
 

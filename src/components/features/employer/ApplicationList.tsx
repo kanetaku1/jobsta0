@@ -20,23 +20,23 @@ export function ApplicationList({ groups }: ApplicationListProps) {
           <div className="flex justify-between items-start mb-4">
             <h3 className="text-lg font-semibold">グループ: {group.name}</h3>
             <span className="text-sm text-gray-500">
-              リーダー: {group.leader.name}
+              リーダー: {group.leader?.name}
             </span>
           </div>
           
           <div className="space-y-3">
             <h4 className="font-medium">メンバー:</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {group.members.map((member) => (
+              {group.members?.map((member) => (
                 <div key={member.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
                   <div>
-                    <span className="font-medium">{member.user.name}</span>
+                    <span className="font-medium">{member.user?.name}</span>
                     <span className="text-sm text-gray-500 ml-2">
                       ({member.status})
                     </span>
                   </div>
                   <div className="text-sm text-gray-500">
-                    {member.user.phone && `📞 ${member.user.phone}`}
+                    {member.user?.phone && `📞 ${member.user.phone}`}
                   </div>
                 </div>
               ))}

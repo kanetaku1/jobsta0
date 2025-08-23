@@ -2,13 +2,13 @@ import { prisma } from '@/lib/prisma'
 import type {
   AddMemberData,
   CreateGroupData,
-  Group,
   SubmitApplicationData,
   UpdateMemberStatusData,
   UpdatePersonalInfoData,
   WaitingRoomWithFullDetails
 } from '@/types'
-import type { WaitingRoom } from '@/types/group'
+import type { GroupWithRelations, WaitingRoom } from '@/types/group'
+import type { Group } from '@prisma/client'
 
 export class GroupService {
   // 基本の待機ルーム作成（Prismaの戻り値のみ）
@@ -20,16 +20,16 @@ export class GroupService {
 
   // 待機ルーム取得（完全な情報付き）
   static async getWaitingRoom(jobId: number): Promise<WaitingRoomWithFullDetails | null> {
-    return await prisma.waitingRoom.findUnique({
+    const result = await prisma.waitingRoom.findUnique({
       where: { jobId },
       include: {
         job: true,
         groups: {
           include: {
-            leader: { select: { id: true, name: true, avatar: true } },
+            leader: true,
             members: { 
               include: { 
-                user: { select: { id: true, name: true, avatar: true, phone: true, address: true, emergencyContact: true } } 
+                user: true
               } 
             },
             applications: true
@@ -37,6 +37,20 @@ export class GroupService {
         }
       }
     })
+    
+    if (!result) return null
+    
+    // 型を正しく変換
+    return {
+      ...result,
+      job: {
+        ...result.job,
+        creatorId: result.job.creatorId,
+        status: result.job.status,
+        location: result.job.location,
+        requirements: result.job.requirements
+      }
+    } as WaitingRoomWithFullDetails
   }
 
   // 待機ルーム作成後に完全な情報を取得
@@ -74,29 +88,35 @@ export class GroupService {
         members: { include: { user: true } },
         applications: true
       }
+    })
 
-      await prisma.groupUser.create({
-        data: {
-          groupId,
-          userId,
-        },
-      });
-    } catch (error) {
-      console.error('Failed to add user to group:', error);
-      throw new Error('ユーザーのグループ追加に失敗しました');
-    }
+    await prisma.groupUser.create({
+      data: {
+        groupId: group.id,
+        userId: leaderId,
+      },
+    })
+
+    return group
   }
 
   // グループ詳細取得
-  static async getGroup(id: number): Promise<Group | null> {
-    return await prisma.group.findUnique({
+  static async getGroup(id: number): Promise<GroupWithRelations | null> {
+    const result = await prisma.group.findUnique({
       where: { id },
       include: {
         leader: true,
         members: { include: { user: true } },
-        applications: true
+        applications: true,
+        waitingRoom: {
+          include: {
+            job: true
+          }
+        }
       }
     })
+    
+    return result
   }
 
   // メンバー追加
@@ -146,5 +166,39 @@ export class GroupService {
       where: { groupId_userId: { groupId, userId } },
       data: { status: 'APPLYING' }
     })
+  }
+
+  // グループ名の重複チェック
+  static async isGroupNameAvailable(name: string): Promise<boolean> {
+    const existing = await prisma.group.findFirst({
+      where: { name }
+    })
+    return !existing
+  }
+
+  // 求人に関連する全グループを取得する
+  static async getGroupsByJobId(jobId: number): Promise<Group[]> {
+    try {
+      const groups = await prisma.group.findMany({
+        where: { 
+          waitingRoom: { jobId } 
+        },
+        include: {
+          members: {
+            include: {
+              user: true,
+            },
+          },
+          applications: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+      return groups as Group[];
+    } catch (error) {
+      console.error('Failed to fetch groups by job:', error);
+      throw new Error('求人に関連するグループの取得に失敗しました');
+    }
   }
 }

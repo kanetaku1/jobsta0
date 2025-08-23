@@ -5,7 +5,7 @@ import { notFound } from 'next/navigation';
 async function getGroupDetail(id: string) {
   try {
     const group = await GroupService.getGroup(parseInt(id));
-    if (!group || !group.waitingRoom?.job) {
+    if (!group || !group.waitingRoomId) {
       notFound();
     }
     return group;
@@ -29,7 +29,7 @@ export default async function GroupDetailPage({
         <h1 className="text-3xl font-bold text-gray-900 mb-2">
           応募待機ルーム
         </h1>
-        <p className="text-gray-600">求人: {group.waitingRoom!.job!.title}</p>
+        <p className="text-gray-600">求人: {group.waitingRoomId}</p>
       </div>
 
       <WaitingRoom group={group} />

@@ -1,6 +1,6 @@
 'use client';
 
-import { createGroup } from '@/app/worker/actions'
+import { createGroupForJob } from '@/app/worker/groups/actions'
 import type { CreateGroupFormProps } from '@/types'
 import { useState } from 'react'
 

@@ -15,10 +15,8 @@ async function getJobs() {
   }
 }
 
-export default async function JobsPage() {
-  const jobs = await getJobs();
 export default async function WorkerJobsPage() {
-    const jobs = await getJobs()
+  const jobs = await getJobs();
 
   return (
     <div className="space-y-4">
@@ -28,12 +26,3 @@ export default async function WorkerJobsPage() {
     </div>
   );
 }
-
-    return (
-        <div className="space-y-4">
-            {jobs.map((job) => (
-                <JobCard key={job.id} job={job} />
-            ))}
-        </div>
-    );
-};

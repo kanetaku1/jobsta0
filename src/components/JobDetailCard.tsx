@@ -1,6 +1,6 @@
 'use client';
 
-import { createAndJoinWaitingRoom } from '@/app/groups/actions';
+import { createAndJoinWaitingRoom } from '@/app/worker/groups/actions';
 import { CreateGroupForm } from '@/components/features/dashboard/CreateGroupForm';
 import { Group } from '@/types/group';
 import { Job } from '@/types/job';
