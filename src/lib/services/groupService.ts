@@ -74,14 +74,17 @@ export class GroupService {
         members: { include: { user: true } },
         applications: true
       }
-    })
 
-    // リーダーをメンバーとして追加
-    await prisma.groupUser.create({
-      data: { groupId: group.id, userId: leaderId, status: 'APPLYING' }
-    })
-
-    return group
+      await prisma.groupUser.create({
+        data: {
+          groupId,
+          userId,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to add user to group:', error);
+      throw new Error('ユーザーのグループ追加に失敗しました');
+    }
   }
 
   // グループ詳細取得

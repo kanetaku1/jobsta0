@@ -1,10 +1,10 @@
 
-const WorkerGroupsPage = () => {
-    return (
-        <div className="groups">
-            <h2>groups</h2>
-        </div>
-    );
+const groups = () => {
+  return (
+    <div className="groups">
+      <h2>groups</h2>
+    </div>
+  );
 };
 
-export default WorkerGroupsPage;
+export default groups;

@@ -42,6 +42,23 @@ export function JobDetailCard({ job }: JobDetailCardProps) {
                 </div>
             </div>
 
+            {/* グループ情報の表示 */}
+            {groups && groups.length > 0 && (
+                <div className="border-t pt-4 mb-4">
+                    <h3 className="text-lg font-semibold mb-2">参加グループ</h3>
+                    <div className="space-y-2">
+                        {groups.map((group) => (
+                            <div key={group.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <span className="font-medium">{group.name}</span>
+                                <span className="text-sm text-gray-500">
+                                    {group.members?.length || 0}人参加
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* 応募待機ルームへのリンク */}
             <div className="border-t pt-4">
                 <div className="text-center">

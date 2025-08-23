@@ -36,28 +36,12 @@ export default function WaitingRoom({
       onStatusUpdate(groupId, userId, status)
     }
   }
-  // 安全なアクセスを実装
+
   const handleSubmitApplication = async (groupId: number) => {
     try {
-      // 安全なチェックを追加
-      if (!waitingRoom?.groups) {
-        console.error('groupsが存在しません')
-        return
+      if (onSubmitApplication) {
+        onSubmitApplication(groupId)
       }
-
-      const group = waitingRoom.groups.find(g => g.id === groupId)
-      if (!group?.members) {
-        console.error('membersが存在しません')
-        return
-      }
-
-      const user = group.members?.find(m => m.user.id === currentUserId)?.user
-      if (!user) {
-        console.error('ユーザーが見つかりません')
-        return
-      }
-
-      // ... 残りの処理
     } catch (error) {
       console.error('エラー:', error)
     }
@@ -67,14 +51,17 @@ export default function WaitingRoom({
     // membersが存在しない場合はfalse
     if (!group.members) return false
     
+    // jobが存在しない場合はfalse
+    if (!waitingRoom.job) return false
+    
     // 全員のステータスが確定しているかチェック
     const allStatusesDetermined = group.members.every(
-      member => member.status !== 'PENDING'
+      (member: any) => member.status !== 'PENDING'
     )
 
     // 応募する人数をチェック
     const applyingCount = group.members.filter(
-      member => member.status === 'APPLYING'
+      (member: any) => member.status === 'APPLYING'
     ).length
 
     return allStatusesDetermined && applyingCount <= waitingRoom.job.maxMembers
@@ -111,11 +98,11 @@ export default function WaitingRoom({
       {/* 応募待機ルームヘッダー */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">
-          {waitingRoom.job.title} - 応募待機ルーム
+          {waitingRoom.job?.title || '求人情報なし'} - 応募待機ルーム
         </h1>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
           <div>
-            <span className="font-semibold">募集人数:</span> {waitingRoom.job.maxMembers}名
+            <span className="font-semibold">募集人数:</span> {waitingRoom.job?.maxMembers || 0}名
           </div>
           <div>
             <span className="font-semibold">グループ数:</span> {waitingRoom.groups.length}/{waitingRoom.maxGroups}
@@ -156,13 +143,13 @@ export default function WaitingRoom({
 
       {/* グループ一覧 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {waitingRoom.groups.map((group) => (
+        {waitingRoom.groups.map((group: any) => (
           <div key={group.id} className="bg-white rounded-lg shadow-md p-6">
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">{group.name}</h3>
                 <p className="text-sm text-gray-600">
-                  リーダー: {group.leader.name || 'Anonymous'}
+                  リーダー: {group.leader?.name || 'Anonymous'}
                 </p>
               </div>
               <div className="flex gap-2">
@@ -173,7 +160,7 @@ export default function WaitingRoom({
                 >
                   QRコード
                 </Button>
-                {currentUserId && group.members && !group.members.find(m => m.user.id === currentUserId) && (
+                {currentUserId && group.members && !group.members.find((m: any) => m.user?.id === currentUserId) && (
                   <Button
                     onClick={() => handleJoinGroup(group.id)}
                     className="px-3 py-1 text-sm"
@@ -204,29 +191,29 @@ export default function WaitingRoom({
                 メンバー ({group.members?.length || 0}名)
               </h4>
               <div className="space-y-2">
-                {group.members?.map((member) => (
+                {group.members?.map((member: any) => (
                   <div key={member.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-sm font-semibold">
-                        {member.user.avatar ? (
+                        {member.user?.avatar ? (
                           <img
                             src={member.user.avatar}
                             alt="Avatar"
                             className="w-8 h-8 rounded-full"
                           />
                         ) : (
-                          member.user.name?.charAt(0) || '?'
+                          member.user?.name?.charAt(0) || '?'
                         )}
                       </div>
                       <span className="text-sm font-medium">
-                        {member.user.name || 'Anonymous'}
+                        {member.user?.name || 'Anonymous'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(member.status)}`}>
                         {getStatusText(member.status)}
                       </span>
-                      {currentUserId === member.user.id && (
+                      {currentUserId === member.user?.id && (
                         <select
                           value={member.status}
                           onChange={(e) => handleStatusUpdate(group.id, member.user.id, e.target.value as MemberStatus)}
@@ -244,16 +231,16 @@ export default function WaitingRoom({
             </div>
 
             {/* 本応募ボタン */}
-            {currentUserId && group.members && group.members.find(m => m.user.id === currentUserId) && (
+            {currentUserId && group.members && group.members.find((m: any) => m.user?.id === currentUserId) && (
               <div className="text-center">
-                                 <Button
-                   onClick={() => handleSubmitApplication(group.id)}
-                   disabled={!canSubmitApplication(group)}
-                   className="w-full"
-                   variant={canSubmitApplication(group) ? "primary" : "secondary"}
-                 >
-                   {canSubmitApplication(group) ? '本応募する' : '応募条件未達成'}
-                 </Button>
+                <Button
+                  onClick={() => handleSubmitApplication(group.id)}
+                  disabled={!canSubmitApplication(group)}
+                  className="w-full"
+                  variant={canSubmitApplication(group) ? "primary" : "secondary"}
+                >
+                  {canSubmitApplication(group) ? '本応募する' : '応募条件未達成'}
+                </Button>
                 {!canSubmitApplication(group) && (
                   <p className="text-xs text-gray-500 mt-2">
                     全員のステータスが確定し、募集人数内である必要があります
