@@ -3,11 +3,15 @@
 import { Button } from '@/components/common/buttons/Button'
 import { GroupService } from '@/lib/services/groupService'
 import type { JobDetailCardProps, WaitingRoomWithFullDetails } from '@/types'
+import { submitIndividualApplication } from '@/app/worker/actions'
+import { useToast } from '@/components/ui/use-toast'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 export function JobDetailCard({ job, groups }: JobDetailCardProps) {
     const [waitingRoom, setWaitingRoom] = useState<WaitingRoomWithFullDetails | null>(null);
+    const [isApplying, setIsApplying] = useState(false);
+    const { toast } = useToast();
 
     useEffect(() => {
         const fetchWaitingRoom = async () => {
@@ -16,6 +20,39 @@ export function JobDetailCard({ job, groups }: JobDetailCardProps) {
         };
         fetchWaitingRoom();
     }, [job.id]);
+
+    const handleIndividualApplication = async () => {
+        setIsApplying(true);
+        try {
+            // TODO: 実際の実装では、認証されたユーザーのIDを取得する必要があります
+            // 現在は仮のIDを使用
+            const userId = 1;
+            
+            const result = await submitIndividualApplication(job.id, userId);
+            
+            if (result.success) {
+                toast({
+                    title: '応募完了',
+                    description: '個人応募が正常に送信されました',
+                });
+            } else {
+                toast({
+                    title: 'エラー',
+                    description: result.error || '応募の送信に失敗しました',
+                    variant: 'destructive',
+                });
+            }
+        } catch (error) {
+            console.error('Failed to submit individual application:', error);
+            toast({
+                title: 'エラー',
+                description: '応募の送信に失敗しました',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsApplying(false);
+        }
+    };
 
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -59,16 +96,30 @@ export function JobDetailCard({ job, groups }: JobDetailCardProps) {
                 </div>
             )}
 
-            {/* 応募待機ルームへのリンク */}
+            {/* 応募ボタン */}
             <div className="border-t pt-4">
-                <div className="text-center">
+                <div className="space-y-3">
+                    {/* 個人応募ボタン */}
+                    <Button 
+                        onClick={handleIndividualApplication}
+                        disabled={isApplying}
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                        {isApplying ? '応募中...' : '個人で応募する'}
+                    </Button>
+                    
+                    {/* グループ応募ボタン */}
                     <Link href={`/worker/jobs/${job.id}/waiting-room`}>
-                        <Button className="w-full">
-                            応募待機ルームに入る
+                        <Button 
+                            variant="outline"
+                            className="w-full"
+                        >
+                            友達と応募する
                         </Button>
                     </Link>
-                    <p className="text-sm text-gray-500 mt-2">
-                        グループでの応募を始めましょう
+                    
+                    <p className="text-sm text-gray-500 text-center">
+                        個人応募またはグループ応募を選択できます
                     </p>
                 </div>
             </div>

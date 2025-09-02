@@ -3,6 +3,7 @@
 import { GroupService } from '@/lib/services/groupService'
 import { MemberStatus } from '@/types/group'
 import { revalidatePath } from 'next/cache'
+import { prisma } from '@/lib/prisma'
 
 // グループ作成
 export async function createGroup(waitingRoomId: number, name: string, leaderId: number) {
@@ -57,4 +58,68 @@ export async function getGroupDetails(id: number) {
 export async function joinGroup(groupId: number, userId: number) {
   await GroupService.addMember({ groupId, userId })
   revalidatePath(`/groups/${groupId}`)
+}
+
+// 個人応募
+export async function submitIndividualApplication(jobId: number, userId: number) {
+  try {
+    // 既に応募していないかチェック
+    const existingApplication = await prisma.application.findFirst({
+      where: {
+        jobId,
+        userId,
+        groupId: null // 個人応募の場合
+      }
+    })
+
+    if (existingApplication) {
+      return { success: false, error: '既にこの求人に応募しています' }
+    }
+
+    // 個人応募を作成
+    const application = await prisma.application.create({
+      data: {
+        jobId,
+        userId,
+        groupId: null,
+        status: 'SUBMITTED'
+      }
+    })
+
+    revalidatePath(`/worker/jobs/${jobId}`)
+    revalidatePath('/worker/jobs')
+    
+    return { success: true, application }
+  } catch (error) {
+    console.error('Failed to submit individual application:', error)
+    return { success: false, error: '応募の送信に失敗しました' }
+  }
+}
+
+// 応募状況確認
+export async function getUserApplications(userId: number) {
+  try {
+    const applications = await prisma.application.findMany({
+      where: { userId },
+      include: {
+        job: true,
+        group: {
+          include: {
+            leader: true,
+            members: {
+              include: {
+                user: true
+              }
+            }
+          }
+        }
+      },
+      orderBy: { submittedAt: 'desc' }
+    })
+
+    return { success: true, applications }
+  } catch (error) {
+    console.error('Failed to fetch user applications:', error)
+    return { success: false, error: '応募履歴の取得に失敗しました' }
+  }
 }

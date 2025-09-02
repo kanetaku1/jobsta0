@@ -24,6 +24,7 @@ model User {
   groupLeaderships Group[]     @relation("GroupLeader")
   groups           GroupUser[]
   createdJobs      Job[]       @relation("JobCreator")
+  applications     Application[]
 }
 
 model Job {
@@ -40,6 +41,7 @@ model Job {
   status       JobStatus    @default(ACTIVE)
   creator      User         @relation("JobCreator", fields: [creatorId], references: [id])
   waitingRoom  WaitingRoom?
+  applications Application[]
 }
 
 model WaitingRoom {
@@ -81,10 +83,14 @@ model GroupUser {
 model Application {
   submittedAt DateTime          @default(now())
   id          Int               @id @default(autoincrement())
-  groupId     Int
+  groupId     Int?
+  userId      Int
+  jobId       Int
   status      ApplicationStatus @default(SUBMITTED)
   isConfirmed Boolean           @default(false)
-  group       Group             @relation(fields: [groupId], references: [id])
+  group       Group?            @relation(fields: [groupId], references: [id])
+  user        User              @relation(fields: [userId], references: [id])
+  job         Job               @relation(fields: [jobId], references: [id])
 }
 
 enum UserType {
