@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Button } from '@/components/common';
+import { createJob } from '@/app/employer/actions';
+import { useToast } from '@/components/ui/use-toast';
 
 interface CreateJobFormData {
   title: string
@@ -14,6 +16,7 @@ interface CreateJobFormData {
 
 export function CreateJobForm() {
   const router = useRouter()
+  const { toast } = useToast()
   const [formData, setFormData] = useState<CreateJobFormData>({
     title: '',
     description: '',
@@ -28,13 +31,39 @@ export function CreateJobForm() {
     setIsSubmitting(true)
 
     try {
-      // TODO: 実際の実装では、Server Actionを使用して求人を作成
-      console.log('Creating job:', formData)
+      // TODO: 実際の実装では、認証されたユーザーのIDを取得する必要があります
+      // 現在は仮のIDを使用
+      const employerId = 1
       
-      // 成功後、求人一覧ページにリダイレクト
-      router.push('/employer/jobs')
+      const result = await createJob(
+        formData.title,
+        formData.description,
+        formData.wage,
+        new Date(formData.jobDate),
+        formData.maxMembers,
+        employerId
+      )
+      
+      if (result.success) {
+        toast({
+          title: '求人作成完了',
+          description: '求人が正常に作成されました',
+        })
+        router.push('/employer/jobs')
+      } else {
+        toast({
+          title: 'エラー',
+          description: result.error || '求人の作成に失敗しました',
+          variant: 'destructive',
+        })
+      }
     } catch (error) {
       console.error('Failed to create job:', error)
+      toast({
+        title: 'エラー',
+        description: '求人の作成に失敗しました',
+        variant: 'destructive',
+      })
     } finally {
       setIsSubmitting(false)
     }
