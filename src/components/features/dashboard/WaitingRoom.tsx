@@ -5,6 +5,7 @@ import type { WaitingRoomProps, WaitingRoomWithFullDetails } from '@/types'
 import type { MemberStatus } from '@/types/group'
 import { QRCodeSVG } from 'qrcode.react'
 import { useState } from 'react'
+import Image from 'next/image'
 
 export default function WaitingRoom({
   waitingRoom,
@@ -196,9 +197,11 @@ export default function WaitingRoom({
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center text-sm font-semibold">
                         {member.user?.avatar ? (
-                          <img
+                          <Image
                             src={member.user.avatar}
                             alt="Avatar"
+                            width={32}
+                            height={32}
                             className="w-8 h-8 rounded-full"
                           />
                         ) : (

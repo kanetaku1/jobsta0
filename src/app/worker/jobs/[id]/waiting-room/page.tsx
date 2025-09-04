@@ -38,7 +38,7 @@ export default function WaitingRoomPage() {
     if (jobId) {
       fetchWaitingRoom()
     }
-  }, [jobId, user, userStatus, router])
+  }, [jobId, user, userStatus, router, fetchWaitingRoom])
 
   const fetchWaitingRoom = async () => {
     try {

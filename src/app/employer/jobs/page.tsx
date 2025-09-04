@@ -4,6 +4,9 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
+// 動的レンダリングを強制
+export const dynamic = 'force-dynamic';
+
 async function getEmployerJobs() {
     try {
         // 現在のセッションを取得
@@ -24,7 +27,7 @@ async function getEmployerJobs() {
         return jobs || [];
     } catch (err) {
         console.error(err);
-        throw new Error("Failed to fetch jobs");
+        return []; // エラー時は空配列を返す
     }
 }
 
