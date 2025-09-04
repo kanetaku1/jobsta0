@@ -5,10 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabase';
+import useUser from '@/hooks/useUser';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface LoginFormData {
   email: string;
@@ -17,12 +17,12 @@ interface LoginFormData {
 
 export default function LoginPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
   });
-  const { toast } = useToast()
+  const { toast } = useToast();
+  const { signIn, isLoading, error, user } = useUser();
 
   const handleInputChange = (field: keyof LoginFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -40,36 +40,30 @@ export default function LoginPage() {
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      await signIn({
         email: formData.email,
         password: formData.password,
       });
 
-      if (error) {
-        throw error;
-      }
+      toast({
+        title: 'ログイン成功',
+        description: 'ようこそ！',
+      });
 
-      if (data.user) {
-        toast({
-          title: 'ログイン成功',
-          description: 'ようこそ！',
-        });
-
-        // ホームページにリダイレクト
-        router.push('/');
+      // ユーザータイプに応じてリダイレクト
+      if (user?.userType === 'EMPLOYER') {
+        router.push('/employer');
+      } else {
+        router.push('/worker');
       }
     } catch (error) {
       console.error('Login error:', error);
       toast({
         title: 'エラー',
-        description: 'ログインに失敗しました。メールアドレスとパスワードを確認してください。',
+        description: error instanceof Error ? error.message : 'ログインに失敗しました。メールアドレスとパスワードを確認してください。',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 

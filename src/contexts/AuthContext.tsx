@@ -1,7 +1,9 @@
 'use client';
 
 import { supabase } from '@/lib/supabase';
+import { getUserOrSync } from '@/lib/actions/auth';
 import { User } from '@supabase/supabase-js';
+import { User as PrismaUser } from '@prisma/client';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 export type UserStatus = 'GUEST' | 'REGISTERED' | 'LOADING';
@@ -13,9 +15,12 @@ interface AuthContextType {
     displayName: string;
     userId: string;
   } | null;
+  prismaUser: PrismaUser | null;
   signOut: () => Promise<void>;
   setGuestMode: (displayName: string) => void;
   clearGuestMode: () => void;
+  isLoading: boolean;
+  error: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,6 +28,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userStatus, setUserStatus] = useState<UserStatus>('LOADING');
+  const [prismaUser, setPrismaUser] = useState<PrismaUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [guestInfo, setGuestInfo] = useState<{
     displayName: string;
     userId: string;
@@ -51,8 +59,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           setUser(session.user);
           setUserStatus('REGISTERED');
+          
+          // Prismaユーザー情報を取得または同期
+          try {
+            const prismaUserData = await getUserOrSync(session.user.id, {
+              email: session.user.email || '',
+              name: session.user.user_metadata?.name || session.user.email?.split('@')[0],
+              userType: 'WORKER'
+            });
+            setPrismaUser(prismaUserData);
+            setError(null);
+          } catch (error) {
+            console.error('Failed to get or sync user:', error);
+            setError('ユーザー情報の取得・同期に失敗しました');
+          } finally {
+            setIsLoading(false);
+          }
         } else {
           setUserStatus('LOADING');
+          setPrismaUser(null);
+          setIsLoading(false);
         }
       };
 
@@ -67,10 +93,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
           setUserStatus('REGISTERED');
+          
+          // Prismaユーザー情報を取得または同期
+          try {
+            const prismaUserData = await getUserOrSync(session.user.id, {
+              email: session.user.email || '',
+              name: session.user.user_metadata?.name || session.user.email?.split('@')[0],
+              userType: 'WORKER'
+            });
+            setPrismaUser(prismaUserData);
+            setError(null);
+          } catch (error) {
+            console.error('Failed to get or sync user:', error);
+            setError('ユーザー情報の取得・同期に失敗しました');
+          } finally {
+            setIsLoading(false);
+          }
+          
           // GUESTモードをクリア
           clearGuestMode();
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          setPrismaUser(null);
           setUserStatus('LOADING');
         }
       }
@@ -83,6 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await supabase.auth.signOut();
       setUser(null);
+      setPrismaUser(null);
       setUserStatus('LOADING');
       clearGuestMode();
     } catch (error) {
@@ -114,9 +159,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user,
     userStatus,
     guestInfo,
+    prismaUser,
     signOut,
     setGuestMode,
     clearGuestMode,
+    isLoading,
+    error,
   };
 
   return (

@@ -3,14 +3,25 @@
 import { GroupService } from '@/lib/services/groupService'
 import { MemberStatus } from '@/types/group'
 import { revalidatePath } from 'next/cache'
+import { getPrismaUserBySupabaseId } from '@/lib/actions/auth'
 import { prisma } from '@/lib/prisma'
 
+// 共通のエラーハンドリング関数
+function handleServerActionError(error: unknown, defaultMessage: string): never {
+  console.error('Server Action Error:', error)
+  const message = error instanceof Error ? error.message : defaultMessage
+  throw new Error(message)
+}
+
 // グループ作成
-export async function createGroup(waitingRoomId: number, name: string, leaderId: number) {
+export async function createGroup(waitingRoomId: number, name: string, supabaseUserId: string) {
+  // SupabaseユーザーIDからPrismaユーザーIDを取得
+  const user = await getPrismaUserBySupabaseId(supabaseUserId)
+
   const group = await GroupService.createGroup({
     jobId: waitingRoomId,
     name,
-    leaderId,
+    leaderId: user.id,
   })
   revalidatePath(`/jobs/${waitingRoomId}/waiting-room`)
   return group
@@ -27,14 +38,20 @@ export async function getWaitingRoom(jobId: number) {
 }
 
 // メンバー追加
-export async function addMember(groupId: number, userId: number) {
-  await GroupService.addMember({ groupId, userId })
+export async function addMember(groupId: number, supabaseUserId: string) {
+  // SupabaseユーザーIDからPrismaユーザーIDを取得
+  const user = await getPrismaUserBySupabaseId(supabaseUserId)
+
+  await GroupService.addMember({ groupId, userId: user.id })
   revalidatePath(`/groups/${groupId}`)
 }
 
 // ステータス更新
-export async function updateStatus(groupId: number, userId: number, status: MemberStatus) {
-  await GroupService.updateStatus({ groupId, userId, status })
+export async function updateStatus(groupId: number, supabaseUserId: string, status: MemberStatus) {
+  // SupabaseユーザーIDからPrismaユーザーIDを取得
+  const user = await getPrismaUserBySupabaseId(supabaseUserId)
+
+  await GroupService.updateStatus({ groupId, userId: user.id, status })
   revalidatePath(`/groups/${groupId}`)
 }
 
@@ -44,8 +61,11 @@ export async function createWaitingRoom(jobId: number) {
 }
 
 // 応募提出
-export async function submitApplication(groupId: number, userId: number) {
-  await GroupService.submitApplication({ groupId, userId })
+export async function submitApplication(groupId: number, supabaseUserId: string) {
+  // SupabaseユーザーIDからPrismaユーザーIDを取得
+  const user = await getPrismaUserBySupabaseId(supabaseUserId)
+
+  await GroupService.submitApplication({ groupId, userId: user.id })
   revalidatePath(`/groups/${groupId}`)
 }
 
@@ -55,19 +75,25 @@ export async function getGroupDetails(id: number) {
 }
 
 // グループ参加
-export async function joinGroup(groupId: number, userId: number) {
-  await GroupService.addMember({ groupId, userId })
+export async function joinGroup(groupId: number, supabaseUserId: string) {
+  // SupabaseユーザーIDからPrismaユーザーIDを取得
+  const user = await getPrismaUserBySupabaseId(supabaseUserId)
+
+  await GroupService.addMember({ groupId, userId: user.id })
   revalidatePath(`/groups/${groupId}`)
 }
 
 // 個人応募
-export async function submitIndividualApplication(jobId: number, userId: number) {
+export async function submitIndividualApplication(jobId: number, supabaseUserId: string) {
   try {
+    // SupabaseユーザーIDからPrismaユーザーIDを取得
+    const user = await getPrismaUserBySupabaseId(supabaseUserId)
+
     // 既に応募していないかチェック
     const existingApplication = await prisma.application.findFirst({
       where: {
         jobId,
-        userId,
+        userId: user.id,
         groupId: null // 個人応募の場合
       }
     })
@@ -80,7 +106,7 @@ export async function submitIndividualApplication(jobId: number, userId: number)
     const application = await prisma.application.create({
       data: {
         jobId,
-        userId,
+        userId: user.id,
         groupId: null,
         status: 'SUBMITTED'
       }
@@ -91,16 +117,18 @@ export async function submitIndividualApplication(jobId: number, userId: number)
     
     return { success: true, application }
   } catch (error) {
-    console.error('Failed to submit individual application:', error)
-    return { success: false, error: '応募の送信に失敗しました' }
+    handleServerActionError(error, '応募の送信に失敗しました')
   }
 }
 
 // 応募状況確認
-export async function getUserApplications(userId: number) {
+export async function getUserApplications(supabaseUserId: string) {
   try {
+    // SupabaseユーザーIDからPrismaユーザーIDを取得
+    const user = await getPrismaUserBySupabaseId(supabaseUserId)
+
     const applications = await prisma.application.findMany({
-      where: { userId },
+      where: { userId: user.id },
       include: {
         job: true,
         group: {
@@ -119,7 +147,6 @@ export async function getUserApplications(userId: number) {
 
     return { success: true, applications }
   } catch (error) {
-    console.error('Failed to fetch user applications:', error)
-    return { success: false, error: '応募履歴の取得に失敗しました' }
+    handleServerActionError(error, '応募履歴の取得に失敗しました')
   }
 }

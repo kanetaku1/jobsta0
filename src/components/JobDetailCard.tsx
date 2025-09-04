@@ -2,6 +2,7 @@
 
 import { createAndJoinWaitingRoom } from '@/app/worker/groups/actions';
 import { CreateGroupForm } from '@/components/features/dashboard/CreateGroupForm';
+import { useAuth } from '@/contexts/AuthContext';
 import { Group } from '@/types/group';
 import { Job } from '@/types/job';
 import { useRouter } from 'next/navigation';
@@ -19,13 +20,17 @@ export function JobDetailCard({ job, groups }: JobDetailCardProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const router = useRouter();
+  const { user } = useAuth();
 
   const handleJoinWaitingRoom = async (groupName: string) => {
+    if (!user) {
+      alert('ログインが必要です');
+      return;
+    }
+
     try {
       setIsCreating(true);
-      // TODO: 実際のユーザーIDを取得する必要があります
-      const currentUserId = 1; // 仮のユーザーID
-      await createAndJoinWaitingRoom(job.id, groupName, currentUserId);
+      await createAndJoinWaitingRoom(job.id, groupName, user.id);
     } catch (error) {
       console.error('グループ作成に失敗しました:', error);
       alert('グループの作成に失敗しました。もう一度お試しください。');

@@ -30,10 +30,10 @@ export default function HomePage() {
                         <h2 className="text-2xl font-semibold mb-4">労働者の方</h2>
                         <p className="text-gray-600 mb-6">求人情報を探して、友達と一緒に応募しましょう</p>
                         <Link 
-                            href="/worker" 
+                            href={userStatus === 'REGISTERED' ? '/worker' : '/guest/jobs'} 
                             className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
                         >
-                            求人を探す
+                            {userStatus === 'REGISTERED' ? '求人を探す' : '求人を確認する'}
                         </Link>
                     </div>
                     
@@ -41,13 +41,42 @@ export default function HomePage() {
                         <h2 className="text-2xl font-semibold mb-4">雇用主の方</h2>
                         <p className="text-gray-600 mb-6">求人を登録して、労働者を募集しましょう</p>
                         <Link 
-                            href="/employer" 
+                            href={userStatus === 'REGISTERED' ? '/employer' : '/auth/login'} 
                             className="inline-block bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
                         >
-                            求人を登録
+                            {userStatus === 'REGISTERED' ? '求人を登録' : 'ログインして求人登録'}
                         </Link>
                     </div>
                 </div>
+
+                {/* Guestモード用の追加機能 */}
+                {userStatus === 'GUEST' && (
+                    <div className="mt-8 p-6 bg-yellow-50 border border-yellow-200 rounded-lg max-w-2xl mx-auto">
+                        <h3 className="text-lg font-semibold text-yellow-800 mb-3">Guestモードで利用可能</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <p className="font-medium text-yellow-800">仕事情報の確認</p>
+                                <p className="text-yellow-700">時給、勤務日時、募集人数などを確認</p>
+                            </div>
+                            <div>
+                                <p className="font-medium text-yellow-800">グループへの参加</p>
+                                <p className="text-yellow-700">QRコードで簡単にグループ参加</p>
+                            </div>
+                        </div>
+                        <div className="mt-4 flex space-x-2">
+                            <Link href="/guest/jobs">
+                                <Button variant="outline" size="sm">
+                                    求人一覧を見る
+                                </Button>
+                            </Link>
+                            <Link href="/guest/join">
+                                <Button variant="outline" size="sm">
+                                    グループに参加
+                                </Button>
+                            </Link>
+                        </div>
+                    </div>
+                )}
 
                 {/* 認証状態に応じた追加アクション */}
                 {userStatus === 'LOADING' && (

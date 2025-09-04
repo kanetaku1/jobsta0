@@ -1,14 +1,27 @@
 import { JobService } from '@/lib/services/jobService';
+import { getUserBySupabaseId } from '@/lib/actions/auth';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 async function getEmployerJobs() {
     try {
-        // TODO: 実際の実装では、ログインユーザーのIDに基づいて求人を取得
-        const jobs = await JobService.getAllJobs();
-        if (!jobs || jobs.length === 0) {
-            return [];
+        // 現在のセッションを取得
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.user) {
+            redirect('/auth/login');
         }
-        return jobs;
+
+        // SupabaseユーザーIDからPrismaユーザーIDを取得
+        const user = await getUserBySupabaseId(session.user.id);
+        
+        if (!user) {
+            redirect('/auth/login');
+        }
+
+        const jobs = await JobService.getEmployerJobs(user.id);
+        return jobs || [];
     } catch (err) {
         console.error(err);
         throw new Error("Failed to fetch jobs");

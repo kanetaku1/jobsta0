@@ -1,6 +1,7 @@
 'use client';
 
 import { createGroupForJob } from '@/app/worker/groups/actions'
+import { useAuth } from '@/contexts/AuthContext'
 import type { CreateGroupFormProps } from '@/types'
 import { useState } from 'react'
 
@@ -12,9 +13,15 @@ export function CreateGroupForm({
   const [groupName, setGroupName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
+  const { user } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!user) {
+      setError('ログインが必要です');
+      return;
+    }
 
     if (!groupName.trim()) {
       setError('グループ名を入力してください');
@@ -25,9 +32,7 @@ export function CreateGroupForm({
     setError('');
 
     try {
-      // TODO: 実際のユーザーIDを取得する必要があります
-      const currentUserId = 1; // 仮のユーザーID
-      await createGroupForJob(jobId, groupName.trim(), currentUserId);
+      await createGroupForJob(jobId, groupName.trim(), user.id);
       setGroupName('');
       onGroupCreated?.();
     } catch (error) {
