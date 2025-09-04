@@ -12,7 +12,7 @@ import { PersonalInfoForm, WaitingRoom } from '@/components/features/dashboard'
 import { useAuth } from '@/contexts/AuthContext'
 import type { MemberStatus, WaitingRoomWithFullDetails } from '@/types'
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 export default function WaitingRoomPage() {
   const params = useParams()
@@ -24,6 +24,25 @@ export default function WaitingRoomPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showPersonalInfoForm, setShowPersonalInfoForm] = useState(false)
+
+  const fetchWaitingRoom = useCallback(async () => {
+    try {
+      setLoading(true)
+      const data = await getWaitingRoom(jobId)
+      
+      if (!data) {
+        // 応募待機ルームが存在しない場合は作成
+        await createWaitingRoomAction()
+        return
+      }
+      
+      setWaitingRoom(data)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'エラーが発生しました')
+    } finally {
+      setLoading(false)
+    }
+  }, [jobId])
 
   useEffect(() => {
     if (userStatus === 'LOADING') {
@@ -40,34 +59,14 @@ export default function WaitingRoomPage() {
     }
   }, [jobId, user, userStatus, router, fetchWaitingRoom])
 
-  const fetchWaitingRoom = async () => {
-    try {
-      setLoading(true)
-      const data = await getWaitingRoom(jobId)
-      
-      if (!data) {
-        // 応募待機ルームが存在しない場合は作成
-        await createWaitingRoomAction()
-        return
-      }
-      
-      setWaitingRoom(data)
-      setWaitingRoom(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'エラーが発生しました')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const createWaitingRoomAction = async () => {
+  const createWaitingRoomAction = useCallback(async () => {
     try {
       const data = await createWaitingRoom(jobId)
       setWaitingRoom(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : '応募待機ルームの作成に失敗しました')
     }
-  }
+  }, [jobId])
 
   const handleCreateGroup = async (name: string) => {
     try {
