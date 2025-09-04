@@ -3,9 +3,9 @@ import type {
   Group as PrismaGroup,
   GroupUser as PrismaGroupUser,
   Job as PrismaJob,
-  User as PrismaUser,
   WaitingRoom as PrismaWaitingRoom
 } from '@prisma/client';
+import type { User } from './user';
 
 // Prismaの型を直接使用
 export type Group = PrismaGroup & {
@@ -19,8 +19,6 @@ export type GroupUser = PrismaGroupUser & {
   group?: Group;
   user?: User;
 };
-
-export type User = PrismaUser;
 
 export type Application = PrismaApplication;
 

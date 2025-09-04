@@ -1,6 +1,7 @@
 // 型の検証とガード
 
-import type { Application, Group, Job, User, WaitingRoom } from './group'
+import type { Application, Group, Job, WaitingRoom } from './group'
+import type { User } from './user'
 import type { WaitingRoomWithFullDetails } from './services'
 
 // 基本的な型ガード

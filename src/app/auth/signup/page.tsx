@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabase';
+import useUser from '@/hooks/useUser';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -21,11 +21,11 @@ interface SignUpFormData {
   gender: string;
   address: string;
   phone: string;
+  userType: 'WORKER' | 'EMPLOYER';
 }
 
 export default function SignUpPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<SignUpFormData>({
     email: '',
     password: '',
@@ -36,8 +36,10 @@ export default function SignUpPage() {
     gender: '',
     address: '',
     phone: '',
+    userType: 'WORKER',
   });
-  const { toast } = useToast()
+  const { toast } = useToast();
+  const { signUp, isLoading, error } = useUser();
 
   const handleInputChange = (field: keyof SignUpFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -82,28 +84,13 @@ export default function SignUpPage() {
       return;
     }
 
-    setIsLoading(true);
-
     try {
-      // Supabaseでユーザー登録
-      const { data: authData, error: authError } = await supabase.auth.signUp({
+      await signUp({
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            full_name: formData.fullName,
-            full_name_kana: formData.fullNameKana,
-            birth_date: formData.birthDate,
-            gender: formData.gender,
-            address: formData.address,
-            phone: formData.phone,
-          }
-        }
+        name: formData.fullName,
+        userType: formData.userType,
       });
-
-      if (authError) {
-        throw authError;
-      }
 
       toast({
         title: '登録完了',
@@ -116,11 +103,9 @@ export default function SignUpPage() {
       console.error('Sign up error:', error);
       toast({
         title: 'エラー',
-        description: '登録に失敗しました。もう一度お試しください。',
+        description: error instanceof Error ? error.message : '登録に失敗しました。もう一度お試しください。',
         variant: 'destructive',
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -252,6 +237,20 @@ export default function SignUpPage() {
                 required
                 placeholder="090-1234-5678"
               />
+            </div>
+
+            {/* ユーザータイプ */}
+            <div>
+              <Label htmlFor="userType">アカウントタイプ *</Label>
+              <Select value={formData.userType} onValueChange={(value: 'WORKER' | 'EMPLOYER') => handleInputChange('userType', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="アカウントタイプを選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="WORKER">ワーカー（求職者）</SelectItem>
+                  <SelectItem value="EMPLOYER">エンプロイヤー（雇用者）</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* 登録ボタン */}

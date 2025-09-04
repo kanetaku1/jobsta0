@@ -5,6 +5,7 @@ import { GroupService } from '@/lib/services/groupService'
 import type { JobDetailCardProps, WaitingRoomWithFullDetails } from '@/types'
 import { submitIndividualApplication } from '@/app/worker/actions'
 import { useToast } from '@/components/ui/use-toast'
+import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
@@ -12,6 +13,7 @@ export function JobDetailCard({ job, groups }: JobDetailCardProps) {
     const [waitingRoom, setWaitingRoom] = useState<WaitingRoomWithFullDetails | null>(null);
     const [isApplying, setIsApplying] = useState(false);
     const { toast } = useToast();
+    const { user, userStatus } = useAuth();
 
     useEffect(() => {
         const fetchWaitingRoom = async () => {
@@ -22,13 +24,18 @@ export function JobDetailCard({ job, groups }: JobDetailCardProps) {
     }, [job.id]);
 
     const handleIndividualApplication = async () => {
+        if (!user) {
+            toast({
+                title: 'エラー',
+                description: 'ログインが必要です',
+                variant: 'destructive',
+            });
+            return;
+        }
+
         setIsApplying(true);
         try {
-            // TODO: 実際の実装では、認証されたユーザーのIDを取得する必要があります
-            // 現在は仮のIDを使用
-            const userId = 1;
-            
-            const result = await submitIndividualApplication(job.id, userId);
+            const result = await submitIndividualApplication(job.id, user.id);
             
             if (result.success) {
                 toast({
@@ -98,30 +105,48 @@ export function JobDetailCard({ job, groups }: JobDetailCardProps) {
 
             {/* 応募ボタン */}
             <div className="border-t pt-4">
-                <div className="space-y-3">
-                    {/* 個人応募ボタン */}
-                    <Button 
-                        onClick={handleIndividualApplication}
-                        disabled={isApplying}
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                    >
-                        {isApplying ? '応募中...' : '個人で応募する'}
-                    </Button>
-                    
-                    {/* グループ応募ボタン */}
-                    <Link href={`/worker/jobs/${job.id}/waiting-room`}>
+                {userStatus === 'LOADING' ? (
+                    <div className="text-center py-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                        <p className="text-gray-600">認証中...</p>
+                    </div>
+                ) : user ? (
+                    <div className="space-y-3">
+                        {/* 個人応募ボタン */}
                         <Button 
-                            variant="outline"
-                            className="w-full"
+                            onClick={handleIndividualApplication}
+                            disabled={isApplying}
+                            className="w-full bg-blue-600 hover:bg-blue-700"
                         >
-                            友達と応募する
+                            {isApplying ? '応募中...' : '個人で応募する'}
                         </Button>
-                    </Link>
-                    
-                    <p className="text-sm text-gray-500 text-center">
-                        個人応募またはグループ応募を選択できます
-                    </p>
-                </div>
+                        
+                        {/* グループ応募ボタン */}
+                        <Link href={`/worker/jobs/${job.id}/waiting-room`}>
+                            <Button 
+                                variant="outline"
+                                className="w-full"
+                            >
+                                友達と応募する
+                            </Button>
+                        </Link>
+                        
+                        <p className="text-sm text-gray-500 text-center">
+                            個人応募またはグループ応募を選択できます
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        <Link href="/auth/login">
+                            <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                                ログインして応募する
+                            </Button>
+                        </Link>
+                        <p className="text-sm text-gray-500 text-center">
+                            応募するにはログインが必要です
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     )

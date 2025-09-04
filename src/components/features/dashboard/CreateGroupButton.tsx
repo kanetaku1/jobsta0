@@ -1,6 +1,7 @@
 'use client';
 
 import { createGroupForJob } from '@/app/worker/groups/actions';
+import { useAuth } from '@/contexts/AuthContext';
 import type { CreateGroupButtonProps } from '@/types'
 import { useState } from 'react'
 
@@ -9,13 +10,17 @@ export default function CreateGroupButton({
   className = '',
 }: CreateGroupButtonProps) {
   const [isCreating, setIsCreating] = useState(false);
+  const { user } = useAuth();
 
   const handleCreateGroup = async () => {
+    if (!user) {
+      alert('ログインが必要です');
+      return;
+    }
+
     try {
       setIsCreating(true);
-      // TODO: 実際のユーザーIDを取得する必要があります
-      const currentUserId = 1; // 仮のユーザーID
-      await createGroupForJob(jobId, className, currentUserId);
+      await createGroupForJob(jobId, className, user.id);
     } catch (error) {
       console.error('Failed to create group:', error);
       // エラーハンドリング（必要に応じてトースト表示など）

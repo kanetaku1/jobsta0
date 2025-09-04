@@ -13,6 +13,7 @@ model User {
   name             String?
   createdAt        DateTime    @default(now())
   id               Int         @id @default(autoincrement())
+  supabaseUserId   String?     @unique
   avatar           String?
   address          String?
   emergencyContact String?

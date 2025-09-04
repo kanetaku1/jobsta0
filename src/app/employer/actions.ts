@@ -2,6 +2,14 @@
 
 import { JobService } from '@/lib/services/jobService'
 import { revalidatePath } from 'next/cache'
+import { getPrismaUserBySupabaseId } from '@/lib/actions/auth'
+
+// 共通のエラーハンドリング関数
+function handleServerActionError(error: unknown, defaultMessage: string): never {
+  console.error('Server Action Error:', error)
+  const message = error instanceof Error ? error.message : defaultMessage
+  throw new Error(message)
+}
 
 // 求人作成
 export async function createJob(
@@ -10,16 +18,19 @@ export async function createJob(
   wage: number,
   jobDate: Date,
   maxMembers: number,
-  employerId: number
+  supabaseUserId: string
 ) {
   try {
+    // SupabaseユーザーIDからPrismaユーザーIDを取得
+    const user = await getPrismaUserBySupabaseId(supabaseUserId)
+
     const job = await JobService.createJob({
       title,
       description,
       wage,
       jobDate,
       maxMembers,
-      employerId
+      employerId: user.id
     })
     
     revalidatePath('/employer/jobs')
@@ -27,8 +38,7 @@ export async function createJob(
     
     return { success: true, job }
   } catch (error) {
-    console.error('Failed to create job:', error)
-    return { success: false, error: '求人の作成に失敗しました' }
+    handleServerActionError(error, '求人の作成に失敗しました')
   }
 }
 

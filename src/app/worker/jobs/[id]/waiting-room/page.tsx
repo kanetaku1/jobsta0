@@ -9,28 +9,23 @@ import {
   updateStatus
 } from '@/app/worker/actions'
 import { PersonalInfoForm, WaitingRoom } from '@/components/features/dashboard'
+import { useAuth } from '@/contexts/AuthContext'
 import type { MemberStatus, WaitingRoomWithFullDetails } from '@/types'
 import { useParams, useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 export default function WaitingRoomPage() {
   const params = useParams()
   const router = useRouter()
   const jobId = parseInt(params.id as string)
+  const { user, userStatus, prismaUser } = useAuth()
   
   const [waitingRoom, setWaitingRoom] = useState<WaitingRoomWithFullDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showPersonalInfoForm, setShowPersonalInfoForm] = useState(false)
-  const [currentUserId] = useState(1) // 仮のユーザーID（実際の実装では認証システムから取得）
 
-  useEffect(() => {
-    if (jobId) {
-      fetchWaitingRoom()
-    }
-  }, [jobId])
-
-  const fetchWaitingRoom = async () => {
+  const fetchWaitingRoom = useCallback(async () => {
     try {
       setLoading(true)
       const data = await getWaitingRoom(jobId)
@@ -42,33 +37,47 @@ export default function WaitingRoomPage() {
       }
       
       setWaitingRoom(data)
-      setWaitingRoom(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'エラーが発生しました')
     } finally {
       setLoading(false)
     }
-  }
+  }, [jobId])
 
-  const createWaitingRoomAction = async () => {
+  useEffect(() => {
+    if (userStatus === 'LOADING') {
+      return // 認証状態の確認中
+    }
+
+    if (!user) {
+      router.push('/auth/login')
+      return
+    }
+
+    if (jobId) {
+      fetchWaitingRoom()
+    }
+  }, [jobId, user, userStatus, router, fetchWaitingRoom])
+
+  const createWaitingRoomAction = useCallback(async () => {
     try {
       const data = await createWaitingRoom(jobId)
       setWaitingRoom(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : '応募待機ルームの作成に失敗しました')
     }
-  }
+  }, [jobId])
 
   const handleCreateGroup = async (name: string) => {
     try {
-      if (!currentUserId) {
-        setError('ユーザー認証が必要です')
+      if (!user) {
+        setError('ログインが必要です')
         return
       }
   
       if (!waitingRoom) return
   
-      await createGroup(waitingRoom.jobId, name, currentUserId)
+      await createGroup(waitingRoom.jobId, name, user.id)
       await fetchWaitingRoom()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'グループの作成に失敗しました')
@@ -77,7 +86,12 @@ export default function WaitingRoomPage() {
 
   const handleGroupJoin = async (groupId: number) => {
     try {
-      await addMember(groupId, currentUserId)
+      if (!user) {
+        setError('ログインが必要です')
+        return
+      }
+
+      await addMember(groupId, user.id)
       
       // 応募待機ルームを再取得
       await fetchWaitingRoom()
@@ -88,7 +102,12 @@ export default function WaitingRoomPage() {
 
   const handleStatusUpdate = async (groupId: number, userId: number, status: string) => {
     try {
-      await updateStatus(groupId, userId, status as any)
+      if (!user) {
+        setError('ログインが必要です')
+        return
+      }
+
+      await updateStatus(groupId, user.id, status as any)
       
       // 応募待機ルームを再取得
       await fetchWaitingRoom()
@@ -99,17 +118,22 @@ export default function WaitingRoomPage() {
 
   const handleSubmitApplication = async (groupId: number) => {
     try {
-      // 個人情報が登録されているかチェック
-      const user = waitingRoom?.groups
-        ?.find(g => g.id === groupId)
-        ?.members?.find(m => m.user?.id === currentUserId)?.user
+      if (!user) {
+        setError('ログインが必要です')
+        return
+      }
 
-      if (!user?.phone || !user?.address || !user?.emergencyContact) {
+      // 個人情報が登録されているかチェック
+      const userData = waitingRoom?.groups
+        ?.find(g => g.id === groupId)
+        ?.members?.find(m => m.user?.id === prismaUser?.id)?.user
+
+      if (!userData?.phone || !userData?.address || !userData?.emergencyContact) {
         setShowPersonalInfoForm(true)
         return
       }
 
-      await submitApplication(groupId, currentUserId)
+      await submitApplication(groupId, user.id)
 
       // 成功メッセージを表示
       alert('本応募が完了しました！')
@@ -177,7 +201,7 @@ export default function WaitingRoomPage() {
   if (showPersonalInfoForm) {
     return (
       <PersonalInfoForm
-        userId={currentUserId}
+        userId={prismaUser?.id || 0}
         onSubmit={handlePersonalInfoSubmit}
         onCancel={() => setShowPersonalInfoForm(false)}
       />
@@ -188,7 +212,7 @@ export default function WaitingRoomPage() {
     <div className="min-h-screen bg-gray-50">
       <WaitingRoom
         waitingRoom={waitingRoom}
-        currentUserId={currentUserId}
+        currentUserId={prismaUser?.id || 0}
         onGroupJoin={handleGroupJoin}
         onStatusUpdate={handleStatusUpdate}
         onCreateGroup={handleCreateGroup}

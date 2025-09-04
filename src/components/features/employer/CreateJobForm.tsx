@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Button } from '@/components/common';
 import { createJob } from '@/app/employer/actions';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CreateJobFormData {
   title: string
@@ -17,6 +18,7 @@ interface CreateJobFormData {
 export function CreateJobForm() {
   const router = useRouter()
   const { toast } = useToast()
+  const { user, userStatus } = useAuth()
   const [formData, setFormData] = useState<CreateJobFormData>({
     title: '',
     description: '',
@@ -28,35 +30,33 @@ export function CreateJobForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!user) {
+      toast({
+        title: 'エラー',
+        description: 'ログインが必要です',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
-      // TODO: 実際の実装では、認証されたユーザーのIDを取得する必要があります
-      // 現在は仮のIDを使用
-      const employerId = 1
-      
       const result = await createJob(
         formData.title,
         formData.description,
         formData.wage,
         new Date(formData.jobDate),
         formData.maxMembers,
-        employerId
+        user.id
       )
       
-      if (result.success) {
-        toast({
-          title: '求人作成完了',
-          description: '求人が正常に作成されました',
-        })
-        router.push('/employer/jobs')
-      } else {
-        toast({
-          title: 'エラー',
-          description: result.error || '求人の作成に失敗しました',
-          variant: 'destructive',
-        })
-      }
+      toast({
+        title: '求人作成完了',
+        description: '求人が正常に作成されました',
+      })
+      router.push('/employer/jobs')
     } catch (error) {
       console.error('Failed to create job:', error)
       toast({
@@ -75,6 +75,26 @@ export function CreateJobForm() {
       ...prev,
       [name]: name === 'wage' || name === 'maxMembers' ? parseInt(value) || 0 : value
     }))
+  }
+
+  if (userStatus === 'LOADING') {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">認証中...</p>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-600 mb-4">求人を作成するにはログインが必要です</p>
+        <Button onClick={() => router.push('/auth/login')}>
+          ログイン
+        </Button>
+      </div>
+    )
   }
 
   return (
