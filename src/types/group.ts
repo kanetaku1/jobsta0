@@ -1,43 +1,62 @@
-export type Group = {
-    id: number
-    name: string
-    jobId: number
-    createdAt: Date
-    job?: {
-        id: number
-        title: string
-        description: string | null
-        wage: number
-        jobDate: Date
-    }
-    members?: GroupUser[]
-    applications?: Application[]
-}
+import type {
+  Application as PrismaApplication,
+  Group as PrismaGroup,
+  GroupUser as PrismaGroupUser,
+  Job as PrismaJob,
+  WaitingRoom as PrismaWaitingRoom
+} from '@prisma/client';
+import type { User } from './user';
 
-export type GroupUser = {
-    id: number
-    groupId: number
-    userId: number
-    joinedAt: Date
-    user?: {
-        id: number
-        email: string
-        name: string | null
-    }
-}
+// Prismaの型を直接使用
+export type Group = PrismaGroup & {
+  waitingRoom?: WaitingRoom;
+  leader?: User;
+  members?: GroupUser[];
+  applications?: Application[];
+};
 
-export type Application = {
-    id: number
-    groupId: number
-    submittedAt: Date
-}
+export type GroupUser = PrismaGroupUser & {
+  group?: Group;
+  user?: User;
+};
+
+export type Application = PrismaApplication;
+
+export type WaitingRoom = PrismaWaitingRoom & {
+  job?: Job;
+  groups?: Group[];
+};
+
+export type Job = PrismaJob;
 
 export type CreateGroupInput = {
-    name: string
-    jobId: number
-}
+  name: string;
+  waitingRoomId: number;
+  leaderId: number;
+};
 
-export type WaitingRoom = {
-    jobId: number
-    groups: Group[]
-}
+export type WaitingRoomWithMembers = WaitingRoom & {
+  groups: (Group & {
+    members: (GroupUser & {
+      user: User;
+    })[];
+  })[];
+};
+
+// Prismaのincludeを使用した場合の戻り値の型
+export type GroupWithRelations = PrismaGroup & {
+  leader: User;
+  members: (PrismaGroupUser & {
+    user: User;
+  })[];
+  applications: PrismaApplication[];
+  waitingRoom: PrismaWaitingRoom & {
+    job: PrismaJob;
+  };
+};
+
+// Prismaのenumを直接使用
+export type MemberStatus = import('@prisma/client').$Enums.MemberStatus;
+export type ApplicationStatus = import('@prisma/client').$Enums.ApplicationStatus;
+export type UserType = import('@prisma/client').$Enums.UserType;
+export type JobStatus = import('@prisma/client').$Enums.JobStatus;
