@@ -9,14 +9,18 @@ async function getJobApplications(jobId: string) {
         if (isNaN(id)) {
             notFound();
         }
-        const job = await JobService.getJobById(id);
-        if (!job) {
+        
+        // 求人と応募情報を一度に取得
+        const jobWithApplications = await JobService.getJobApplications(id);
+        if (!jobWithApplications) {
             notFound();
         }
         
-        const waitingRoom = await GroupService.getWaitingRoom(id);
-        
-        return { job, waitingRoom };
+        return { 
+            job: jobWithApplications, 
+            waitingRoom: jobWithApplications.waitingRoom,
+            individualApplications: jobWithApplications.applications || []
+        };
     } catch (err) {
         console.error(err);
         throw new Error("Failed to fetch applications");
@@ -25,7 +29,7 @@ async function getJobApplications(jobId: string) {
 
 export default async function ApplicationsPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
-    const { job, waitingRoom } = await getJobApplications(id);
+    const { job, waitingRoom, individualApplications } = await getJobApplications(id);
 
     return (
         <div>
@@ -39,12 +43,44 @@ export default async function ApplicationsPage({ params }: { params: Promise<{ i
                 <h1 className="text-2xl font-bold">{job.title} - 応募者一覧</h1>
             </div>
             
+            {/* 個人応募の表示 */}
+            {individualApplications && individualApplications.length > 0 && (
+                <div className="mb-8">
+                    <h2 className="text-xl font-semibold mb-4">個人応募</h2>
+                    <div className="space-y-3">
+                        {individualApplications.map((app) => (
+                            <div key={app.id} className="bg-white p-4 rounded-lg shadow border-l-4 border-green-500">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <h3 className="font-medium">{app.user.name}</h3>
+                                        <p className="text-sm text-gray-500">
+                                            提出日: {app.submittedAt.toLocaleDateString('ja-JP')} | 
+                                            状態: {app.status}
+                                        </p>
+                                    </div>
+                                    <div className="text-sm text-gray-500">
+                                        {app.user.phone && `📞 ${app.user.phone}`}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* グループ応募の表示 */}
             {!waitingRoom || !waitingRoom.groups || waitingRoom.groups.length === 0 ? (
                 <div className="text-center py-8">
-                    <p className="text-gray-500">まだ応募がありません</p>
+                    <p className="text-gray-500">
+                        {individualApplications && individualApplications.length > 0 
+                            ? 'グループ応募はありません' 
+                            : 'まだ応募がありません'
+                        }
+                    </p>
                 </div>
             ) : (
                 <div className="space-y-6">
+                    <h2 className="text-xl font-semibold">グループ応募</h2>
                     {waitingRoom.groups.map((group) => (
                         <div key={group.id} className="bg-white p-6 rounded-lg shadow">
                             <div className="flex justify-between items-start mb-4">
