@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
-import useUser from '@/hooks/useUser';
+import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -39,7 +39,7 @@ export default function SignUpPage() {
     userType: 'WORKER',
   });
   const { toast } = useToast();
-  const { signUp, isLoading, error } = useUser();
+  const { signUp, isLoading, error } = useAuth();
 
   const handleInputChange = (field: keyof SignUpFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));

@@ -4,13 +4,11 @@ import { AuthGuard, AuthStatus, UserProfile } from '@/components/features/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
-import useUser from '@/hooks/useUser';
 import Link from 'next/link';
 import { useState } from 'react';
 
 export default function TestAuthPage() {
-  const { user, prismaUser, userStatus, isLoading, error } = useAuth();
-  const { signIn, signUp, signOut } = useUser();
+  const { user, prismaUser, userStatus, isLoading, error, signIn, signUp, signOut } = useAuth();
   const [testEmail, setTestEmail] = useState('test@example.com');
   const [testPassword, setTestPassword] = useState('password123');
 

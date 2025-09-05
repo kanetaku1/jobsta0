@@ -8,6 +8,18 @@ import { createContext, ReactNode, useContext, useEffect, useState } from 'react
 
 export type UserStatus = 'GUEST' | 'REGISTERED' | 'LOADING';
 
+interface SignInData {
+  email: string;
+  password: string;
+}
+
+interface SignUpData {
+  email: string;
+  password: string;
+  name: string;
+  userType: 'WORKER' | 'EMPLOYER';
+}
+
 interface AuthContextType {
   user: User | null;
   userStatus: UserStatus;
@@ -21,6 +33,20 @@ interface AuthContextType {
   clearGuestMode: () => void;
   isLoading: boolean;
   error: string | null;
+  // 認証チェック用のヘルパー関数
+  isAuthenticated: boolean;
+  isWorker: boolean;
+  isEmployer: boolean;
+  isGuest: boolean;
+  // 認証が必要な場合のチェック関数
+  requireAuth: (userType?: 'WORKER' | 'EMPLOYER') => boolean;
+  // 認証アクション
+  signIn: (data: SignInData) => Promise<User | undefined>;
+  signUp: (data: SignUpData) => Promise<User | undefined>;
+  // 便利なヘルパー関数
+  canAccess: (userType?: 'WORKER' | 'EMPLOYER') => boolean;
+  isOwner: (userId: number) => boolean;
+  hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [userStatus, setUserStatus] = useState<UserStatus>('LOADING');
   const [prismaUser, setPrismaUser] = useState<PrismaUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guestInfo, setGuestInfo] = useState<{
     displayName: string;
@@ -155,6 +182,105 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setGuestInfo(null);
   };
 
+  // サインイン関数
+  const signIn = async ({ email, password }: SignInData) => {
+    try {
+      setIsAuthLoading(true);
+      
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        throw new Error(signInError.message);
+      }
+
+      if (data.user) {
+        // ユーザー情報の同期は認証状態変更リスナーで処理される
+        return data.user;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'サインインに失敗しました';
+      throw new Error(errorMessage);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  // サインアップ関数
+  const signUp = async ({ email, password, name, userType }: SignUpData) => {
+    try {
+      setIsAuthLoading(true);
+      
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: name || email.split('@')[0],
+            user_type: userType || 'WORKER'
+          }
+        }
+      });
+
+      if (signUpError) {
+        throw new Error(signUpError.message);
+      }
+
+      if (data.user) {
+        // ユーザー情報の同期は認証状態変更リスナーで処理される
+        return data.user;
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'サインアップに失敗しました';
+      throw new Error(errorMessage);
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  // 認証状態のヘルパー関数
+  const isAuthenticated = userStatus === 'REGISTERED' && !!user && !!prismaUser;
+  const isWorker = isAuthenticated && prismaUser?.userType === 'WORKER';
+  const isEmployer = isAuthenticated && prismaUser?.userType === 'EMPLOYER';
+  const isGuest = userStatus === 'GUEST';
+
+  // 認証が必要な場合のチェック関数
+  const requireAuth = (userType?: 'WORKER' | 'EMPLOYER'): boolean => {
+    if (!isAuthenticated) return false;
+    if (userType && prismaUser?.userType !== userType) return false;
+    return true;
+  };
+
+  // 便利なヘルパー関数
+  const canAccess = (userType?: 'WORKER' | 'EMPLOYER'): boolean => {
+    if (!isAuthenticated) return false;
+    if (userType && prismaUser?.userType !== userType) return false;
+    return true;
+  };
+
+  const isOwner = (userId: number): boolean => {
+    return prismaUser?.id === userId;
+  };
+
+  const hasPermission = (permission: string): boolean => {
+    // 将来的に権限システムを実装する場合の拡張ポイント
+    if (!isAuthenticated) return false;
+    
+    // 基本的な権限チェック
+    switch (permission) {
+      case 'create_job':
+        return isEmployer;
+      case 'apply_job':
+        return isWorker || isGuest;
+      case 'manage_group':
+        return isWorker;
+      default:
+        return false;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     userStatus,
@@ -163,8 +289,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     setGuestMode,
     clearGuestMode,
-    isLoading,
+    isLoading: isLoading || isAuthLoading,
     error,
+    isAuthenticated,
+    isWorker,
+    isEmployer,
+    isGuest,
+    requireAuth,
+    signIn,
+    signUp,
+    canAccess,
+    isOwner,
+    hasPermission,
   };
 
   return (

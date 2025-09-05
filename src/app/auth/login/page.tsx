@@ -5,10 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import useUser from '@/hooks/useUser';
+import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface LoginFormData {
   email: string;
@@ -22,7 +22,7 @@ export default function LoginPage() {
     password: '',
   });
   const { toast } = useToast();
-  const { signIn, isLoading, error, user } = useUser();
+  const { signIn, isLoading, prismaUser } = useAuth();
 
   const handleInputChange = (field: keyof LoginFormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -52,7 +52,7 @@ export default function LoginPage() {
       });
 
       // ユーザータイプに応じてリダイレクト
-      if (user?.userType === 'EMPLOYER') {
+      if (prismaUser?.userType === 'EMPLOYER') {
         router.push('/employer');
       } else {
         router.push('/worker');

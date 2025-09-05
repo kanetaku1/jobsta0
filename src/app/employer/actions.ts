@@ -18,7 +18,9 @@ export async function createJob(
   wage: number,
   jobDate: Date,
   maxMembers: number,
-  supabaseUserId: string
+  supabaseUserId: string,
+  location: string,
+  requirements: string
 ) {
   try {
     // SupabaseユーザーIDからPrismaユーザーIDを取得
@@ -30,7 +32,9 @@ export async function createJob(
       wage,
       jobDate,
       maxMembers,
-      employerId: user.id
+      employerId: user.id,
+      location,
+      requirements
     })
     
     revalidatePath('/employer/jobs')
@@ -49,7 +53,9 @@ export async function updateJob(
   description: string,
   wage: number,
   jobDate: Date,
-  maxMembers: number
+  maxMembers: number,
+  location: string,
+  requirements: string
 ) {
   try {
     const job = await JobService.updateJob(jobId, {
@@ -57,7 +63,9 @@ export async function updateJob(
       description,
       wage,
       jobDate,
-      maxMembers
+      maxMembers,
+      location,
+      requirements
     })
     
     revalidatePath(`/employer/jobs/${jobId}`)
@@ -82,6 +90,25 @@ export async function deleteJob(jobId: number) {
   } catch (error) {
     console.error('Failed to delete job:', error)
     return { success: false, error: '求人の削除に失敗しました' }
+  }
+}
+
+// 雇用主の求人一覧取得
+export async function getEmployerJobs(supabaseUserId: string) {
+  try {
+    // SupabaseユーザーIDからPrismaユーザーIDを取得
+    const user = await getPrismaUserBySupabaseId(supabaseUserId)
+    
+    // 雇用主かどうかチェック
+    if (user.userType !== 'EMPLOYER') {
+      return { success: false, error: '雇用主として認証されていません' }
+    }
+    
+    const jobs = await JobService.getEmployerJobs(user.id)
+    return { success: true, jobs }
+  } catch (error) {
+    console.error('Failed to fetch employer jobs:', error)
+    return { success: false, error: '求人情報の取得に失敗しました' }
   }
 }
 

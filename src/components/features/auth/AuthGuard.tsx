@@ -9,49 +9,76 @@ interface AuthGuardProps {
   requireAuth?: boolean;
   userType?: 'WORKER' | 'EMPLOYER';
   redirectTo?: string;
+  fallback?: ReactNode;
+  showLoading?: boolean;
 }
 
+/**
+ * 統一された認証ガードコンポーネント
+ * Client ComponentとServer Componentの両方で使用可能
+ */
 export default function AuthGuard({ 
   children, 
   requireAuth = true, 
   userType, 
-  redirectTo = '/auth/login' 
+  redirectTo = '/auth/login',
+  fallback,
+  showLoading = true
 }: AuthGuardProps) {
-  const { user, prismaUser, userStatus, isLoading } = useAuth();
+  const { 
+    isAuthenticated, 
+    isWorker, 
+    isEmployer, 
+    isLoading, 
+    requireAuth: checkAuth,
+    error 
+  } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
     if (isLoading) return;
 
     if (requireAuth) {
-      if (!user || !prismaUser) {
-        router.push(redirectTo);
-        return;
-      }
-
-      if (userType && prismaUser.userType !== userType) {
-        // ユーザータイプが一致しない場合は適切なページにリダイレクト
-        const targetPage = prismaUser.userType === 'EMPLOYER' ? '/employer' : '/worker';
-        router.push(targetPage);
+      if (!checkAuth(userType)) {
+        if (userType) {
+          // ユーザータイプが指定されている場合、適切なページにリダイレクト
+          const targetPage = isWorker ? '/worker' : isEmployer ? '/employer' : redirectTo;
+          router.push(targetPage);
+        } else {
+          router.push(redirectTo);
+        }
         return;
       }
     }
-  }, [user, prismaUser, userStatus, isLoading, requireAuth, userType, redirectTo, router]);
+  }, [isAuthenticated, isWorker, isEmployer, isLoading, requireAuth, userType, redirectTo, router, checkAuth]);
 
-  if (isLoading) {
+  // ローディング状態
+  if (isLoading && showLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">読み込み中...</p>
+        </div>
       </div>
     );
   }
 
-  if (requireAuth && (!user || !prismaUser)) {
-    return null; // リダイレクト中
+  // エラー状態
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">エラーが発生しました</p>
+          <p className="text-sm text-gray-500">{error}</p>
+        </div>
+      </div>
+    );
   }
 
-  if (userType && prismaUser?.userType !== userType) {
-    return null; // リダイレクト中
+  // 認証が必要で認証されていない場合
+  if (requireAuth && !checkAuth(userType)) {
+    return fallback || null; // リダイレクト中
   }
 
   return <>{children}</>;

@@ -13,6 +13,8 @@ interface CreateJobFormData {
   wage: number
   jobDate: string
   maxMembers: number
+  location: string
+  requirements: string
 }
 
 export function CreateJobForm() {
@@ -24,7 +26,9 @@ export function CreateJobForm() {
     description: '',
     wage: 1000,
     jobDate: '',
-    maxMembers: 1
+    maxMembers: 1,
+    location: '',
+    requirements: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -49,6 +53,8 @@ export function CreateJobForm() {
         formData.wage,
         new Date(formData.jobDate),
         formData.maxMembers,
+        formData.location,
+        formData.requirements,
         user.id
       )
       
@@ -178,6 +184,32 @@ export function CreateJobForm() {
           value={formData.jobDate}
           onChange={handleInputChange}
           required
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+      <div>
+        <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+          勤務地
+        </label>
+        <input
+          type="text"
+          id="location"
+          name="location"
+          value={formData.location}
+          onChange={handleInputChange}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div>
+        <label htmlFor="requirements" className="block text-sm font-medium text-gray-700 mb-2">
+          要件
+        </label>
+        <textarea
+          id="requirements"
+          name="requirements"
+          value={formData.requirements}
+          onChange={handleInputChange}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
