@@ -45,7 +45,8 @@ export default function GuestModePage() {
     });
 
     // ホームページにリダイレクト
-    router.push('/');
+    router.push('/guest');
+    router.refresh();
   };
 
   return (

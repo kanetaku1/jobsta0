@@ -134,7 +134,7 @@ export function CreateJobForm() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="wage" className="block text-sm font-medium text-gray-700 mb-2">
-            時給 (円) *
+            日給 (円) *
           </label>
           <input
             type="number"
