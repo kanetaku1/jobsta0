@@ -11,6 +11,7 @@ async function getEmployerJobs() {
     try {
         // 現在のセッションを取得
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("session:", session);
         
         if (!session?.user) {
             redirect('/auth/login');

@@ -25,6 +25,13 @@ export default function WorkerHomePage() {
                             <h2 className="text-lg font-semibold">グループ管理</h2>
                             <p className="text-gray-600">友達と一緒に応募するグループを作成・参加できます</p>
                         </Link>
+                        <Link 
+                            href="/worker/attendance" 
+                            className="p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                            <h2 className="text-lg font-semibold">勤務管理</h2>
+                            <p className="text-gray-600">勤務時間の記録と給与情報を確認できます</p>
+                        </Link>
                     </div>
                 </div>
             </div>

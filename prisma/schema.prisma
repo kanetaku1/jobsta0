@@ -26,6 +26,7 @@ model User {
   groups           GroupUser[]
   createdJobs      Job[]       @relation("JobCreator")
   applications     Application[]
+  attendances      Attendance[]
 }
 
 model Job {
@@ -43,6 +44,7 @@ model Job {
   creator      User         @relation("JobCreator", fields: [creatorId], references: [id])
   waitingRoom  WaitingRoom?
   applications Application[]
+  attendances  Attendance[]
 }
 
 model WaitingRoom {
@@ -116,4 +118,21 @@ enum ApplicationStatus {
   SUBMITTED
   APPROVED
   REJECTED
+}
+
+model Attendance {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  jobId       Int
+  startTime   DateTime
+  endTime     DateTime?
+  totalHours  Float?   // 勤務時間（時間単位）
+  totalWage   Int?     // 総給与（円）
+  isPaid      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id])
+  job         Job      @relation(fields: [jobId], references: [id])
+
+  @@unique([userId, jobId, startTime])
 }
