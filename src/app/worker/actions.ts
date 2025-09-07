@@ -1,9 +1,11 @@
 'use server'
 
 import { GroupService } from '@/lib/services/groupService'
+import { JobService } from '@/lib/services/jobService'
 import { MemberStatus } from '@/types/group'
 import { revalidatePath } from 'next/cache'
 import { getPrismaUserBySupabaseId } from '@/lib/actions/auth'
+import { getJobAttendanceStatus } from '@/lib/actions/attendance'
 import { prisma } from '@/lib/prisma'
 
 // 共通のエラーハンドリング関数
@@ -148,5 +150,52 @@ export async function getUserApplications(supabaseUserId: string) {
     return { success: true, applications }
   } catch (error) {
     handleServerActionError(error, '応募履歴の取得に失敗しました')
+  }
+}
+
+// 求人とグループ情報を取得
+export async function getJobWithGroups(id: string, supabaseUserId?: string) {
+  try {
+    const jobId = parseInt(id)
+    
+    if (isNaN(jobId) || jobId <= 0) {
+      throw new Error('無効な求人IDです')
+    }
+
+    const job = await JobService.getJobById(jobId)
+    if (!job) {
+      throw new Error('指定された求人が見つかりません')
+    }
+
+    // 求人に関連するグループを取得
+    const groups = await GroupService.getGroupsByJobId(job.id)
+
+    // 勤務状況を取得（認証済みユーザーの場合）
+    let attendanceStatus = null
+    if (supabaseUserId) {
+      try {
+        const result = await getJobAttendanceStatus(job.id, supabaseUserId)
+        if (result.success) {
+          attendanceStatus = result
+        }
+      } catch (err) {
+        console.error('Failed to fetch attendance status:', err)
+      }
+    }
+
+    return { 
+      success: true, 
+      data: { 
+        job, 
+        groups, 
+        attendanceStatus 
+      } 
+    }
+  } catch (error) {
+    console.error('Failed to fetch job with groups:', error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : '求人の取得に失敗しました' 
+    }
   }
 }
