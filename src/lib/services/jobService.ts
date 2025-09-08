@@ -72,13 +72,10 @@ export class JobService {
           }
         }
       })
+      
       return jobs
     } catch (error) {
       console.error('Failed to fetch employer jobs:', error)
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined
-      })
       throw new Error('求人の取得に失敗しました')
     }
   }
