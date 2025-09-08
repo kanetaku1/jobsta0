@@ -162,9 +162,56 @@ export class GroupService {
   static async submitApplication(data: SubmitApplicationData) {
     const { groupId, userId } = data
     
-    return await prisma.groupUser.update({
-      where: { groupId_userId: { groupId, userId } },
-      data: { status: 'APPLYING' }
+    // グループ情報を取得してjobIdを取得
+    const group = await prisma.group.findUnique({
+      where: { id: groupId },
+      select: { waitingRoomId: true }
+    })
+    
+    if (!group) {
+      throw new Error('グループが見つかりません')
+    }
+    
+    // 求人IDを取得
+    const waitingRoom = await prisma.waitingRoom.findUnique({
+      where: { id: group.waitingRoomId },
+      select: { jobId: true }
+    })
+    
+    if (!waitingRoom) {
+      throw new Error('待機ルームが見つかりません')
+    }
+    
+    // 既に応募していないかチェック
+    const existingApplication = await prisma.application.findFirst({
+      where: {
+        groupId,
+        userId,
+        jobId: waitingRoom.jobId
+      }
+    })
+    
+    if (existingApplication) {
+      throw new Error('既にこのグループに応募しています')
+    }
+    
+    // トランザクションでGroupUserのステータス更新とApplicationレコード作成を実行
+    return await prisma.$transaction(async (tx) => {
+      // GroupUserのステータスを更新
+      await tx.groupUser.update({
+        where: { groupId_userId: { groupId, userId } },
+        data: { status: 'APPLYING' }
+      })
+      
+      // Applicationレコードを作成
+      return await tx.application.create({
+        data: {
+          groupId,
+          userId,
+          jobId: waitingRoom.jobId,
+          status: 'SUBMITTED'
+        }
+      })
     })
   }
 

@@ -202,7 +202,7 @@ export class JobService {
    */
   static async getJobApplications(jobId: number) {
     try {
-      const applications = await prisma.job.findUnique({
+      const job = await prisma.job.findUnique({
         where: { id: jobId },
         include: {
           waitingRoom: {
@@ -219,14 +219,29 @@ export class JobService {
                       }
                     }
                   },
-                  applications: true
+                  applications: {
+                    include: {
+                      user: {
+                        select: { id: true, name: true, phone: true }
+                      }
+                    }
+                  }
                 }
+              }
+            }
+          },
+          // 個人応募も取得
+          applications: {
+            where: { groupId: null },
+            include: {
+              user: {
+                select: { id: true, name: true, phone: true }
               }
             }
           }
         }
       })
-      return applications
+      return job
     } catch (error) {
       console.error('Failed to fetch job applications:', error)
       throw new Error('応募者情報の取得に失敗しました')
