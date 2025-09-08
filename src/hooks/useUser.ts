@@ -36,7 +36,26 @@ export default function useUser(): UseUserReturn {
       setIsLoading(true);
       setError(null);
 
-      const user = await getUserBySupabaseId(supabaseUserId);
+      let user;
+      try {
+        user = await getUserBySupabaseId(supabaseUserId);
+      } catch (err) {
+        // ユーザーが見つからない場合は同期を試行
+        const { syncUserToDatabase } = await import('@/lib/actions/auth');
+        
+        // Supabaseユーザー情報を取得
+        const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+        if (!supabaseUser) {
+          throw new Error('Supabaseユーザー情報が取得できません');
+        }
+
+        user = await syncUserToDatabase(supabaseUserId, {
+          email: supabaseUser.email || '',
+          name: supabaseUser.user_metadata?.name || supabaseUser.email?.split('@')[0],
+          userType: supabaseUser.user_metadata?.user_type || 'WORKER'
+        });
+      }
+      
       setPrismaUser(user);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'ユーザー情報の取得に失敗しました';

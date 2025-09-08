@@ -85,6 +85,20 @@ export async function deleteJob(jobId: number) {
   }
 }
 
+// 雇用主の求人取得
+export async function getEmployerJobs(supabaseUserId: string) {
+  try {
+    // SupabaseユーザーIDからPrismaユーザーIDを取得
+    const user = await getPrismaUserBySupabaseId(supabaseUserId)
+    
+    const jobs = await JobService.getEmployerJobs(user.id)
+    return { success: true, jobs }
+  } catch (error) {
+    console.error('Failed to fetch employer jobs:', error)
+    return { success: false, error: '求人の取得に失敗しました' }
+  }
+}
+
 // 応募者情報取得
 export async function getJobApplications(jobId: number) {
   try {
