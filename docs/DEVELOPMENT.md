@@ -40,7 +40,6 @@ src/
 ### 前提条件
 
 - Node.js 18以上
-- Docker Desktop
 - Git
 
 ### 1. リポジトリのクローン
@@ -57,18 +56,26 @@ cp .env.local.example .env.local
 # .env.localファイルを編集して必要な値を設定
 ```
 
-### 3. Dockerで開発環境を起動
+### 3. パッケージのインストール
 
 ```bash
-docker-compose up --build
+npm install
 ```
 
 ### 4. データベースのセットアップ
 
 ```bash
-# 別のターミナルで
-docker-compose exec app npx prisma migrate dev
-docker-compose exec app npx prisma generate
+# Prismaマイグレーション
+npx prisma migrate dev
+
+# Prismaクライアント生成
+npx prisma generate
+```
+
+### 5. 開発サーバーの起動
+
+```bash
+npm run dev
 ```
 
 ## 🧪 テスト
@@ -201,7 +208,6 @@ npx prisma studio
 ### 開発環境
 
 - ローカル: `http://localhost:3000`
-- Docker: `http://localhost:3000`
 
 ### 本番環境
 

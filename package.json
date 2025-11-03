@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "prisma generate && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
@@ -13,12 +13,9 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build",
-    "postinstall": "prisma generate",
-    "db:seed": "tsx prisma/seed.ts"
+    "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@prisma/client": "^6.13.0",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.3",
     "@supabase/auth-ui-react": "^0.4.7",
@@ -32,7 +29,6 @@
     "lucide-react": "^0.541.0",
     "next": "^15.4.5",
     "postcss": "^8.5.6",
-    "prisma": "^6.13.0",
     "qrcode": "^1.5.4",
     "qrcode.react": "^4.2.0",
     "react": "19.1.0",

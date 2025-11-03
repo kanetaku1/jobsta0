@@ -4,44 +4,6 @@
 
 ## 🚀 開発環境セットアップ
 
-### 方法1: Dockerを使った簡単セットアップ（推奨）
-
-#### 1. Dockerのインストール
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) をダウンロードしてインストール
-- インストール後、Docker Desktopを起動
-
-#### 2. リポジトリをクローン
-
-```bash
-git clone https://github.com/kanetaku1/jobsta0.git
-cd jobsta0
-```
-
-#### 3. 環境変数を設定
-
-`.env.local.example`をコピーして`.env.local`を作成し、Supabaseなどのキーを設定してください。
-
-```bash
-cp .env.local.example .env.local
-```
-
-#### 4. Dockerで開発環境を起動
-
-```bash
-docker-compose up --build
-```
-
-これだけで開発環境が起動します！ブラウザで http://localhost:3000 にアクセスしてください。
-
-#### 5. 開発環境の停止
-
-```bash
-docker-compose down
-```
-
-### 方法2: 従来のセットアップ
-
 #### 1. リポジトリをクローン
 
 ```bash
@@ -68,13 +30,6 @@ npm install
 ```bash
 npm run dev
 ```
-
-## 🐳 Dockerを使うメリット
-
-- **環境の統一**: 全員が同じ開発環境を使える
-- **簡単セットアップ**: 複雑な環境構築が不要
-- **依存関係の管理**: Node.jsのバージョンなどを自動で管理
-- **データベース**: PostgreSQLも自動で起動
 
 ## 🧪 テスト環境の使い分け
 
@@ -143,49 +98,14 @@ npm run dev
 
 ## 🔧 よくあるトラブルと解決方法
 
-### Docker関連
-
-```bash
-# コンテナが起動しない場合
-docker-compose down
-docker-compose up --build
-
-# ログを確認
-docker-compose logs app
-
-# コンテナ内でコマンド実行
-docker-compose exec app npm run build
-
-# シンプル版で試す
-docker-compose -f docker-compose.simple.yml up --build
-```
-
-### Dockerが起動しない場合
-
-1. **Docker Desktopの再起動**
-   - Docker Desktopを完全に終了して再起動
-   - 起動完了まで数分待つ
-
-2. **従来の環境構築を使用**
-
-   ```bash
-   npm install
-   npm run dev
-   ```
-
-3. **WSL2の確認**
-   - Windows 10/11でWSL2が有効になっているか確認
-   - Docker Desktopの設定で「Use WSL 2 based engine」が有効
-
 ### データベース関連
 
 ```bash
-# データベースのリセット
-docker-compose down -v
-docker-compose up --build
-
 # Prismaマイグレーション
-docker-compose exec app npx prisma migrate dev
+npx prisma migrate dev
+
+# Prismaクライアント生成
+npx prisma generate
 ```
 
 ## 📚 参考資料
