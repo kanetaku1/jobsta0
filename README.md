@@ -13,10 +13,17 @@ cd jobsta0
 
 #### 2. 環境変数を設定
 
-`.env.local.example`をコピーして`.env.local`を作成し、Supabaseなどのキーを設定してください。
+`.env.local`ファイルを作成し、SupabaseとPrismaの設定を行ってください。
+
+詳細は [`docs/AUTH_SETUP_GUIDE.md`](./docs/AUTH_SETUP_GUIDE.md) を参照してください。
 
 ```bash
-cp .env.local.example .env.local
+# 必要な環境変数
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+DATABASE_URL=postgresql://postgres:password@host:5432/postgres
+DIRECT_URL=postgresql://postgres:password@host:5432/postgres
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 #### 3. パッケージをインストール
@@ -25,7 +32,17 @@ cp .env.local.example .env.local
 npm install
 ```
 
-#### 4. ローカルサーバー起動
+#### 4. データベースのセットアップ
+
+```bash
+# Prisma Clientの生成
+npm run db:generate
+
+# データベースマイグレーション（初回のみ）
+npm run db:migrate
+```
+
+#### 5. ローカルサーバー起動
 
 ```bash
 npm run dev
@@ -63,10 +80,10 @@ npm run dev
 
 ## 🛠 使用技術
 
-- **Frontend**: Next.js 14, TypeScript
-- **Styling**: TailwindCSS
-- **Database**: PostgreSQL (Prisma)
-- **Authentication**: Supabase
+- **Frontend**: Next.js 15.4.5, React 19.1.0, TypeScript v5
+- **Styling**: TailwindCSS v3.4.17, Shadcn/ui
+- **Database**: PostgreSQL (Supabase) + Prisma v6.13.0
+- **Authentication**: Supabase Auth (LINE Login対応)
 - **Deployment**: Vercel
 
 ## 👥 チーム開発ルール
@@ -101,12 +118,25 @@ npm run dev
 ### データベース関連
 
 ```bash
-# Prismaマイグレーション
-npx prisma migrate dev
+# Prisma Clientの生成
+npm run db:generate
 
-# Prismaクライアント生成
-npx prisma generate
+# マイグレーション（開発環境）
+npm run db:migrate
+
+# マイグレーション（本番環境）
+npm run db:migrate:deploy
+
+# Prisma Studio（データベースGUI）
+npm run db:studio
+
+# スキーマを直接プッシュ（開発用）
+npm run db:push
 ```
+
+### Supabase設定
+
+詳細な設定手順は [`docs/AUTH_SETUP_GUIDE.md`](./docs/AUTH_SETUP_GUIDE.md) を参照してください。
 
 ## 📚 参考資料
 
