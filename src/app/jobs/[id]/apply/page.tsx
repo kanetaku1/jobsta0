@@ -7,19 +7,16 @@ import { ArrowLeft, CheckCircle, Send, UserPlus, Users, User, Share2 } from 'luc
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/use-toast'
-import { getJob } from '@/utils/getData'
-import { 
-  getCurrentUserId,
-  getGroupsByJobId,
-  getGroup,
-  createApplicationGroup
-} from '@/lib/localStorage'
-import { getApprovedMembers, getParticipatingMembers, canSubmitApplication } from '@/utils/group'
-import { GroupCreateModal } from '@/components/GroupCreateModal'
-import { GroupInviteLinkModal } from '@/components/GroupInviteLinkModal'
-import { GroupMemberList } from '@/components/GroupMemberList'
-import { IndividualApplicationForm } from '@/components/IndividualApplicationForm'
-import { JobInfo } from '@/components/JobInfo'
+import { getJob } from '@/lib/utils/getData'
+import { getGroups, getGroup } from '@/lib/actions/groups'
+import { createApplication } from '@/lib/actions/applications'
+import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getApprovedMembers, getParticipatingMembers, canSubmitApplication } from '@/lib/utils/group'
+import { GroupCreateModal } from '@/components/groups/GroupCreateModal'
+import { GroupInviteLinkModal } from '@/components/groups/GroupInviteLinkModal'
+import { GroupMemberList } from '@/components/groups/GroupMemberList'
+import { IndividualApplicationForm } from '@/components/applications/IndividualApplicationForm'
+import { JobInfo } from '@/components/jobs/JobInfo'
 import type { Group, GroupMember } from '@/types/application'
 
 export default function ApplyPage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,19 +39,52 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
       setJobId(id)
       
       try {
-        const jobData = await getJob(id)
-        setJob(jobData)
+        // クライアント側キャッシュを確認
+        const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+        const jobCacheKey = createCacheKey('job', id)
+        const cachedJob = clientCache.get<any>(jobCacheKey)
+        
+        if (cachedJob) {
+          setJob(cachedJob)
+        } else {
+          const jobData = await getJob(id)
+          setJob(jobData)
+          // キャッシュに保存（5分TTL）
+          if (jobData) {
+            clientCache.set(jobCacheKey, jobData, 5 * 60 * 1000)
+          }
+        }
 
-        // Auth0のIDトークンからユーザーIDを取得（getCurrentUserId()が既にAuth0対応済み）
-        const userId = getCurrentUserId()
+        // Auth0のIDトークンからユーザーIDを取得
+        const user = getCurrentUserFromAuth0()
+        if (!user) {
+          setLoading(false)
+          return
+        }
         
-        // 求人ごとのグループを取得
-        const jobGroups = getGroupsByJobId(id, userId)
-        setGroups(jobGroups)
+        // クライアント側キャッシュを確認
+        const groupsCacheKey = createCacheKey('groups', id, user.id)
+        const cachedGroups = clientCache.get<typeof groups>(groupsCacheKey)
         
-        if (jobGroups.length > 0) {
-          setSelectedGroupId(jobGroups[0].id)
-          setApplicationType('group')
+        if (cachedGroups) {
+          setGroups(cachedGroups)
+          if (cachedGroups.length > 0) {
+            setSelectedGroupId(cachedGroups[0].id)
+            setApplicationType('group')
+          }
+        } else {
+          // 求人ごとのグループを取得
+          const jobGroups = await getGroups(id)
+          const userGroups = jobGroups.filter(g => g.ownerUserId === user.id)
+          setGroups(userGroups)
+          
+          // キャッシュに保存（30秒TTL）
+          clientCache.set(groupsCacheKey, userGroups, 30000)
+          
+          if (jobGroups.length > 0) {
+            setSelectedGroupId(jobGroups[0].id)
+            setApplicationType('group')
+          }
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -69,13 +99,21 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   // 友達自身が承認/辞退する機能は招待リンクページで実装
   // この画面では承認状況を確認するのみ
 
-  const handleGroupCreated = (newGroup: Group) => {
-    const userId = getCurrentUserId()
+  const handleGroupCreated = async (newGroup: Group) => {
+    const user = getCurrentUserFromAuth0()
+    if (!user) return
+    
     // 求人ごとのグループを再取得
-    const jobGroups = getGroupsByJobId(jobId, userId)
-    setGroups(jobGroups)
+    const jobGroups = await getGroups(jobId)
+    const userGroups = jobGroups.filter(g => g.ownerUserId === user.id)
+    setGroups(userGroups)
     setSelectedGroupId(newGroup.id)
     setIsCreateModalOpen(false)
+    
+    // キャッシュを更新
+    const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+    const groupsCacheKey = createCacheKey('groups', jobId, user.id)
+    clientCache.set(groupsCacheKey, userGroups, 30000)
   }
 
   const handleSubmitApplication = async () => {
@@ -88,7 +126,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
       return
     }
 
-    const group = getGroup(selectedGroupId)
+    const group = await getGroup(selectedGroupId)
     if (!group) {
       toast({
         title: 'エラー',
@@ -125,12 +163,10 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
     const participatingMembers = getParticipatingMembers(group)
 
     try {
-      // Auth0のIDトークンからユーザーIDを取得（getCurrentUserId()が既にAuth0対応済み）
-      const userId = getCurrentUserId()
       // 応募に参加しているメンバーのIDのみを送信
-      const memberIds = participatingMembers.map(m => m.id)
+      const memberIds = participatingMembers.map(m => m.userId || m.id).filter(Boolean) as string[]
       
-      createApplicationGroup(jobId, userId, memberIds, job?.title, selectedGroupId)
+      await createApplication(jobId, memberIds, selectedGroupId)
       
       toast({
         title: '応募が完了しました',

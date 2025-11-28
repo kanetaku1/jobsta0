@@ -1,7 +1,7 @@
-import { Header } from '@/components/Header'
+import { Header } from '@/components/common/Header'
 import '@/styles/globals.css'
 import { ReactNode } from 'react'
-import { Providers } from '@/components/Providers'
+import { Providers } from '@/components/common/Providers'
 
 export const metadata = {
   title: 'Jobsta - 友達と応募できる短期バイトマッチングアプリ',

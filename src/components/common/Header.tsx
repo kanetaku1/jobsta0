@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { NotificationDropdown } from '@/components/NotificationDropdown'
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown'
 import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
 
 /**
@@ -42,15 +42,20 @@ export function Header() {
     loadUser()
 
     // クッキーの変更を監視（ログイン/ログアウト時に更新）
+    // 間隔を長くして負荷を軽減（5秒）
     const checkAuthInterval = setInterval(() => {
       const currentUser = getUserFromToken()
-      if (currentUser?.id !== user?.id) {
-        setUser(currentUser)
-      }
-    }, 1000)
+      setUser((prevUser: any) => {
+        if (currentUser?.id !== prevUser?.id) {
+          return currentUser
+        }
+        return prevUser
+      })
+    }, 5000)
 
     return () => clearInterval(checkAuthInterval)
-  }, [user?.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // 初回のみ実行
 
   const handleLogout = async () => {
     // Auth0のトークンをクッキーから削除
@@ -103,3 +108,4 @@ export function Header() {
     </header>
   )
 }
+

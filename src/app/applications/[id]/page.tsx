@@ -6,13 +6,10 @@ import Link from 'next/link'
 import { ArrowLeft, Clock, CheckCircle, XCircle, Users, User, MapPin, DollarSign, Calendar, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  getApplicationGroups,
-  getGroups,
-  getCurrentUserId,
-  getGroup
-} from '@/lib/localStorage'
-import { getJob } from '@/utils/getData'
+import { getApplications } from '@/lib/actions/applications'
+import { getGroups, getGroup } from '@/lib/actions/groups'
+import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getJob } from '@/lib/utils/getData'
 import type { ApplicationGroup, Group } from '@/types/application'
 
 export default function ApplicationDetailPage({ 
@@ -33,9 +30,14 @@ export default function ApplicationDetailPage({
       const id = resolvedParams.id
       setApplicationId(id)
 
-      const userId = getCurrentUserId()
-      const applications = getApplicationGroups()
-      const app = applications.find(a => a.id === id && a.applicantUserId === userId)
+      const user = getCurrentUserFromAuth0()
+      if (!user) {
+        setLoading(false)
+        return
+      }
+      
+      const applications = await getApplications()
+      const app = applications.find(a => a.id === id && a.applicantUserId === user.id)
 
       if (!app) {
         setLoading(false)
@@ -44,33 +46,74 @@ export default function ApplicationDetailPage({
 
       setApplication(app)
 
-      // 求人情報を取得
-      try {
-        const jobData = await getJob(app.jobId)
-        setJob(jobData)
-      } catch (error) {
-        console.error('Error loading job:', error)
-      }
+      // クライアント側キャッシュを確認
+      const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+      const jobCacheKey = createCacheKey('job', app.jobId)
+      const cachedJob = clientCache.get<any>(jobCacheKey)
 
-      // グループ情報を取得（グループ応募の場合）
-      if (app.groupId) {
-        const groupData = getGroup(app.groupId)
-        if (groupData) {
-          setGroup(groupData)
-        }
-      } else if (app.friendUserIds.length > 0) {
-        // フォールバック: groupIdがない場合、同じjobIdで、同じユーザーがオーナーのグループを探す
-        const allGroups = getGroups()
-        const relatedGroups = allGroups.filter(
-          g => g.jobId === app.jobId && g.ownerUserId === userId
-        )
-        if (relatedGroups.length > 0) {
-          // 最新のグループを取得
-          const latestGroup = relatedGroups.sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          )[0]
-          setGroup(latestGroup)
-        }
+      // 求人情報とグループ情報を並列で取得
+      const [jobData, groupData] = await Promise.all([
+        // 求人情報を取得（キャッシュ優先）
+        (async () => {
+          if (cachedJob) {
+            return cachedJob
+          }
+          try {
+            const job = await getJob(app.jobId)
+            if (job) {
+              // キャッシュに保存（5分TTL）
+              clientCache.set(jobCacheKey, job, 5 * 60 * 1000)
+            }
+            return job
+          } catch (error) {
+            console.error('Error loading job:', error)
+            return null
+          }
+        })(),
+        // グループ情報を取得（グループ応募の場合）
+        (async () => {
+          if (app.groupId) {
+            const groupCacheKey = createCacheKey('group', app.groupId)
+            const cachedGroup = clientCache.get<Group>(groupCacheKey)
+            if (cachedGroup) {
+              return cachedGroup
+            }
+            const group = await getGroup(app.groupId)
+            if (group) {
+              // キャッシュに保存（30秒TTL）
+              clientCache.set(groupCacheKey, group, 30000)
+            }
+            return group
+          } else if (app.friendUserIds.length > 0) {
+            // フォールバック: groupIdがない場合、同じjobIdで、同じユーザーがオーナーのグループを探す
+            const groupsCacheKey = createCacheKey('groups', app.jobId, user.id)
+            const cachedGroups = clientCache.get<typeof allGroups>(groupsCacheKey)
+            let allGroups: any[]
+            if (cachedGroups) {
+              allGroups = cachedGroups
+            } else {
+              allGroups = await getGroups(app.jobId)
+              // キャッシュに保存（30秒TTL）
+              clientCache.set(groupsCacheKey, allGroups, 30000)
+            }
+            const relatedGroups = allGroups.filter(
+              g => g.ownerUserId === user.id
+            )
+            if (relatedGroups.length > 0) {
+              // 最新のグループを取得
+              const latestGroup = relatedGroups.sort((a, b) => 
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+              )[0]
+              return latestGroup
+            }
+          }
+          return null
+        })(),
+      ])
+
+      setJob(jobData)
+      if (groupData) {
+        setGroup(groupData)
       }
 
       setLoading(false)

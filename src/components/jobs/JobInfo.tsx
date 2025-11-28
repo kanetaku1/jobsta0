@@ -1,6 +1,6 @@
 'use client'
 
-import type { Job } from '@/utils/getData'
+import type { Job } from '@/lib/utils/getData'
 
 type JobInfoProps = {
   job: Job

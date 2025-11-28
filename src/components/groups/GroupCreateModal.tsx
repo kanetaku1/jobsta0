@@ -7,16 +7,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
-import { 
-  getCurrentUserName, 
-  setCurrentUserName, 
-  getCurrentUserId,
-  createGroup,
-  getFriends,
-  createNotification
-} from '@/lib/localStorage'
+import { getFriends } from '@/lib/actions/friends'
+import { createGroup } from '@/lib/actions/groups'
+import { createNotification } from '@/lib/actions/notifications'
 import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
-import { GroupInviteLinkModal } from '@/components/GroupInviteLinkModal'
+import { GroupInviteLinkModal } from '@/components/groups/GroupInviteLinkModal'
 import type { Group, Friend } from '@/types/application'
 
 type GroupCreateModalProps = {
@@ -46,28 +41,21 @@ export function GroupCreateModal({ isOpen, onClose, onGroupCreated, jobId }: Gro
             const displayName = user.displayName || user.name || user.email?.split('@')[0] || ''
             if (displayName) {
               setOwnerName(displayName)
-              setCurrentUserName(displayName)
-            }
-          } else {
-            const savedName = getCurrentUserName()
-            if (savedName) {
-              setOwnerName(savedName)
             }
           }
         } catch (error) {
           console.error('Error loading user info:', error)
-          const savedName = getCurrentUserName()
-          if (savedName) {
-            setOwnerName(savedName)
-          }
         }
       }
       
       loadUserInfo()
       
       // 友達リストを読み込む
-      const friendsList = getFriends()
-      setFriends(friendsList)
+      const loadFriends = async () => {
+        const friendsList = await getFriends()
+        setFriends(friendsList)
+      }
+      loadFriends()
     }
   }, [isOpen])
 
@@ -92,36 +80,36 @@ export function GroupCreateModal({ isOpen, onClose, onGroupCreated, jobId }: Gro
       return
     }
 
-    const userId = getCurrentUserId()
-    
     // 既存友達から選択されたメンバー
     const selectedFriends = friends.filter(f => selectedFriendIds.includes(f.id))
     const allMembers = selectedFriends.map(f => ({
       name: f.name,
+      userId: f.id, // 友達のIDを設定
     }))
 
     // メンバーは0人でもOK（グループ招待リンクから後で参加できる）
 
     try {
-      setCurrentUserName(ownerName)
-      
       // 希望者数のバリデーション
-      if (requiredCount < 1 || requiredCount > allMembers.length) {
+      if (requiredCount < 1) {
         toast({
           title: 'エラー',
-          description: `希望者数は1人以上${allMembers.length}人以下で設定してください`,
+          description: '希望者数は1人以上で設定してください',
           variant: 'destructive',
         })
         return
       }
       
       // グループを作成（求人IDを含む、招待リンクは自動生成）
-      const group = createGroup(jobId, ownerName, userId, allMembers, requiredCount)
+      const group = await createGroup(jobId, ownerName, allMembers, requiredCount)
+      
+      if (!group) {
+        throw new Error('グループの作成に失敗しました')
+      }
       
       // 選択された友達に通知を送る
-      const selectedFriends = friends.filter(f => selectedFriendIds.includes(f.id))
-      selectedFriends.forEach(friend => {
-        createNotification({
+      for (const friend of selectedFriends) {
+        await createNotification({
           userId: friend.id,
           type: 'group_invitation',
           groupId: group.id,
@@ -130,7 +118,7 @@ export function GroupCreateModal({ isOpen, onClose, onGroupCreated, jobId }: Gro
           fromUserName: ownerName,
           message: `${ownerName}さんから応募グループへの招待が届きました`,
         })
-      })
+      }
       
       toast({
         title: 'グループを作成しました',
@@ -144,7 +132,7 @@ export function GroupCreateModal({ isOpen, onClose, onGroupCreated, jobId }: Gro
       setSelectedFriendIds([])
       
       // 友達リストを再読み込み
-      const updatedFriends = getFriends()
+      const updatedFriends = await getFriends()
       setFriends(updatedFriends)
     } catch (error) {
       toast({

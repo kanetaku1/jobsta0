@@ -24,3 +24,19 @@ export async function getJob(id: string): Promise<Job | null> {
     const job = jobs.find(j => j.id === id)
     return job || null
 }
+
+// 複数のIDで求人を一括取得（N+1問題の解決）
+export async function getJobsByIds(ids: string[]): Promise<Map<string, Job>> {
+    const jobs = await getJobsAll()
+    const jobsMap = new Map<string, Job>()
+    
+    for (const id of ids) {
+        const job = jobs.find(j => j.id === id)
+        if (job) {
+            jobsMap.set(id, job)
+        }
+    }
+    
+    return jobsMap
+}
+

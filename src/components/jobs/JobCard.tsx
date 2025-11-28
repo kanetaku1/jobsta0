@@ -4,9 +4,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getUserGroups, getCurrentUserId } from '@/lib/localStorage'
+import { getGroups } from '@/lib/actions/groups'
 import { useToast } from '@/components/ui/use-toast'
-import type { Job } from '@/utils/getData'
+import type { Job } from '@/lib/utils/getData'
 
 type JobCardProps = {
   job: Job

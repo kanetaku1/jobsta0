@@ -6,13 +6,10 @@ import Link from 'next/link'
 import { ArrowLeft, Clock, CheckCircle, XCircle, Users, User, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  getApplicationGroups,
-  getGroups,
-  getCurrentUserId,
-  getGroup
-} from '@/lib/localStorage'
-import { getJob } from '@/utils/getData'
+import { getApplications } from '@/lib/actions/applications'
+import { getGroups, getGroup } from '@/lib/actions/groups'
+import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getJob } from '@/lib/utils/getData'
 import type { ApplicationGroup, Group } from '@/types/application'
 
 type ApplicationWithDetails = ApplicationGroup & {
@@ -30,62 +27,62 @@ export default function ApplicationsPage() {
 
   useEffect(() => {
     const loadApplications = async () => {
-      const userId = getCurrentUserId()
-      const applicationGroups = getApplicationGroups()
+      const user = getCurrentUserFromAuth0()
+      if (!user) {
+        setLoading(false)
+        return
+      }
+      
+      const applicationGroups = await getApplications()
       
       // ユーザーが応募したものだけを取得
       const userApplications = applicationGroups.filter(
-        ag => ag.applicantUserId === userId
+        ag => ag.applicantUserId === user.id
       )
 
-      // 各応募の詳細情報を取得
-      const applicationsWithDetails: ApplicationWithDetails[] = await Promise.all(
-        userApplications.map(async (app) => {
-          // 求人情報を取得
-          let jobTitle: string | undefined
-          let jobLocation: string | undefined
-          let jobWageAmount: number | undefined
-          
-          try {
-            const job = await getJob(app.jobId)
-            if (job) {
-              jobTitle = job.title || undefined
-              jobLocation = job.location || undefined
-              jobWageAmount = job.wage_amount || undefined
-            }
-          } catch (error) {
-            console.error('Error loading job:', error)
-          }
+      // 一括取得のためのIDを収集
+      const jobIds = [...new Set(userApplications.map(app => app.jobId).filter(Boolean))]
+      const groupIds = userApplications
+        .map(app => app.groupId)
+        .filter((id): id is string => Boolean(id))
 
-          // グループ情報を取得（グループ応募の場合）
-          let group: Group | undefined
-          if (app.groupId) {
-            const groupData = getGroup(app.groupId)
-            if (groupData) {
-              group = groupData
-            }
-          } else if (app.friendUserIds.length > 0) {
-            // フォールバック: groupIdがない場合、同じjobIdのグループを探す
-            const allGroups = getGroups()
-            const relatedGroups = allGroups.filter(g => g.jobId === app.jobId && g.ownerUserId === userId)
-            if (relatedGroups.length > 0) {
-              // 最新のグループを取得
-              group = relatedGroups.sort((a, b) => 
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-              )[0]
-            }
-          }
+      // 一括取得（並列実行）
+      const [jobsMap, groupsMap] = await Promise.all([
+        // 求人情報を一括取得
+        (async () => {
+          const { getJobsByIds } = await import('@/lib/utils/getData')
+          return await getJobsByIds(jobIds)
+        })(),
+        // グループ情報を一括取得
+        (async () => {
+          const { getGroupsByIds } = await import('@/lib/actions/groups')
+          return await getGroupsByIds(groupIds)
+        })(),
+      ])
 
-          return {
-            ...app,
-            jobTitle,
-            jobLocation,
-            jobWageAmount,
-            group,
-            applicationType: app.friendUserIds.length > 0 ? 'group' : 'individual',
-          }
-        })
-      )
+      // 各応募の詳細情報を構築（N+1問題を解決）
+      const applicationsWithDetails: ApplicationWithDetails[] = userApplications.map((app) => {
+        // 求人情報を取得
+        const job = jobsMap.get(app.jobId)
+        const jobTitle = job?.title || undefined
+        const jobLocation = job?.location || undefined
+        const jobWageAmount = job?.wage_amount || undefined
+
+        // グループ情報を取得（グループ応募の場合）
+        let group: Group | undefined
+        if (app.groupId) {
+          group = groupsMap.get(app.groupId)
+        }
+
+        return {
+          ...app,
+          jobTitle,
+          jobLocation,
+          jobWageAmount,
+          group,
+          applicationType: app.friendUserIds.length > 0 ? 'group' : 'individual',
+        }
+      })
 
       // 日付順でソート（新しい順）
       applicationsWithDetails.sort((a, b) => 

@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Check, Heart } from 'lucide-react'
-import type { Friend, JobInterestStatus } from '@/types/application'
-import { getFriendsWithJobInterest, getCurrentUserId } from '@/lib/localStorage'
-import { Badge } from '@/components/ui/badge'
-
-type FriendWithInterest = Friend & { interestStatus: JobInterestStatus }
+import { useState, useEffect, useCallback } from 'react'
+import { Check, RefreshCw } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import type { Friend } from '@/types/application'
+import { getFriends } from '@/lib/actions/friends'
+import { clientCache, createCacheKey } from '@/lib/cache/client-cache'
 
 type FriendListProps = {
   jobId: string
@@ -15,20 +14,36 @@ type FriendListProps = {
 }
 
 export function FriendList({ jobId, selectedFriendIds, onSelectionChange }: FriendListProps) {
-  const [friends, setFriends] = useState<FriendWithInterest[]>([])
-  const userId = getCurrentUserId()
+  const [friends, setFriends] = useState<Friend[]>([])
+  const [isLoading, setIsLoading] = useState(false)
 
-  useEffect(() => {
-    const loadFriends = () => {
-      const friendsWithInterest = getFriendsWithJobInterest(jobId, userId)
-      setFriends(friendsWithInterest)
+  const loadFriends = useCallback(async (useCache = true) => {
+    const cacheKey = createCacheKey('friends', 'list')
+    
+    // キャッシュから取得を試みる
+    if (useCache) {
+      const cached = clientCache.get<Friend[]>(cacheKey)
+      if (cached) {
+        setFriends(cached)
+        return
+      }
     }
 
+    setIsLoading(true)
+    try {
+      const friendsList = await getFriends()
+      // キャッシュに保存（30秒TTL）
+      clientCache.set(cacheKey, friendsList, 30000)
+      setFriends(friendsList)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
     loadFriends()
-    // 定期的に更新（他のタブで変更があった場合に備えて）
-    const interval = setInterval(loadFriends, 2000)
-    return () => clearInterval(interval)
-  }, [jobId, userId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // 初回のみ実行
 
   const handleToggleSelection = (friendId: string) => {
     if (selectedFriendIds.includes(friendId)) {
@@ -39,39 +54,44 @@ export function FriendList({ jobId, selectedFriendIds, onSelectionChange }: Frie
   }
 
 
-  const getInterestBadge = (status: JobInterestStatus) => {
-    switch (status) {
-      case 'interested':
-        return (
-          <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
-            <Heart size={12} className="mr-1 fill-current" />
-            この求人に興味あり
-          </Badge>
-        )
-      case 'not_interested':
-        return (
-          <Badge variant="outline" className="text-gray-600">
-            興味なし
-          </Badge>
-        )
-      default:
-        return null
-    }
-  }
 
-  if (friends.length === 0) {
+  if (friends.length === 0 && !isLoading) {
     return (
       <div className="p-6 text-center border border-gray-200 rounded-lg bg-gray-50">
         <p className="text-gray-600 mb-2">友達リストが空です</p>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-500 mb-4">
           友達を追加してから、一緒に応募できるようになります
         </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => loadFriends(false)}
+          disabled={isLoading}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+          更新
+        </Button>
       </div>
     )
   }
 
   return (
-    <div className="space-y-2 max-h-96 overflow-y-auto">
+    <div className="space-y-2">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-sm text-gray-600">友達一覧</p>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => loadFriends(false)}
+          disabled={isLoading}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+          更新
+        </Button>
+      </div>
+      <div className="space-y-2 max-h-96 overflow-y-auto">
       {friends.map((friend) => {
         const isSelected = selectedFriendIds.includes(friend.id)
         
@@ -105,29 +125,16 @@ export function FriendList({ jobId, selectedFriendIds, onSelectionChange }: Frie
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <p className="font-medium text-gray-900 truncate">{friend.name}</p>
-                  {getInterestBadge(friend.interestStatus)}
                 </div>
                 {friend.email && (
                   <p className="text-sm text-gray-500 truncate">{friend.email}</p>
                 )}
-                {friend.interestStatus === 'none' && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    この求人への興味ステータス未設定
-                  </p>
-                )}
               </div>
             </div>
-
-            {friend.interestStatus === 'interested' && (
-              <div className="flex items-center gap-2 ml-4">
-                <div className="text-sm text-green-600 font-medium">
-                  この求人に興味あり
-                </div>
-              </div>
-            )}
           </div>
         )
       })}
+      </div>
     </div>
   )
 }

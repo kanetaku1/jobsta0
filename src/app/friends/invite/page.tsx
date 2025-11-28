@@ -6,12 +6,7 @@ import Link from 'next/link'
 import { CheckCircle, ArrowLeft, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
-import { 
-  getFriends,
-  addFriend,
-  getCurrentUserId,
-  getCurrentUserName
-} from '@/lib/localStorage'
+import { getFriends, addFriend } from '@/lib/actions/friends'
 import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
 import type { Friend } from '@/types/application'
 
@@ -36,16 +31,15 @@ export default function FriendInvitePage() {
       setFromUserId(fromId)
 
       // ログイン状態を確認
-      const currentUserId = getCurrentUserId()
-      if (!currentUserId) {
-        // ログインしていない場合は、招待トークンをlocalStorageに保存してログインページにリダイレクト
-        localStorage.setItem('jobsta_friend_invite_token', fromId)
+      const currentUser = getCurrentUserFromAuth0()
+      if (!currentUser) {
+        // ログインしていない場合は、ログインページにリダイレクト
         router.push('/login?redirect=/friends/invite?from=' + encodeURIComponent(fromId))
         return
       }
 
       // 既に友達リストに追加されているか確認
-      const friends = getFriends()
+      const friends = await getFriends()
       const existingFriend = friends.find(f => f.id === fromId)
       
       if (existingFriend) {
@@ -59,28 +53,27 @@ export default function FriendInvitePage() {
       // 現在はユーザーIDから名前を取得できないため、デフォルト名を使用
       const inviterDisplayName = '友達'
       
-      // 相互追加：招待者と被招待者の両方の友達リストに追加
-      const currentUser = getCurrentUserFromAuth0()
-      const currentUserName = currentUser?.displayName || getCurrentUserName() || 'ユーザー'
-      
       // 被招待者の友達リストに招待者を追加
-      const inviterFriend: Friend = {
-        id: fromId,
+      const result = await addFriend({
         name: inviterDisplayName,
         email: undefined,
-      }
-      addFriend(inviterFriend)
-      
-      // 招待者の友達リストに被招待者を追加（localStorageはクライアント側のみなので、実際には招待者の環境では実行できない）
-      // この部分は将来的にサーバーサイドで実装する必要がある
-      
-      setAdded(true)
-      setInviterName(inviterDisplayName)
-      
-      toast({
-        title: '友達を追加しました',
-        description: `${inviterDisplayName}さんを友達リストに追加しました。`,
       })
+      
+      if (result) {
+        setAdded(true)
+        setInviterName(result.name)
+        
+        toast({
+          title: '友達を追加しました',
+          description: `${result.name}さんを友達リストに追加しました。`,
+        })
+      } else {
+        toast({
+          title: 'エラー',
+          description: '友達の追加に失敗しました',
+          variant: 'destructive',
+        })
+      }
 
       setLoading(false)
     }
@@ -88,30 +81,6 @@ export default function FriendInvitePage() {
     loadData()
   }, [searchParams, router, toast])
 
-  // 招待トークンがlocalStorageに保存されている場合、ログイン後に自動追加
-  useEffect(() => {
-    const inviteToken = localStorage.getItem('jobsta_friend_invite_token')
-    if (inviteToken && getCurrentUserId()) {
-      const friends = getFriends()
-      const existingFriend = friends.find(f => f.id === inviteToken)
-      
-      if (!existingFriend) {
-        const inviterFriend: Friend = {
-          id: inviteToken,
-          name: '友達',
-          email: undefined,
-        }
-        addFriend(inviterFriend)
-        
-        toast({
-          title: '友達を追加しました',
-          description: '友達リストに追加されました。',
-        })
-      }
-      
-      localStorage.removeItem('jobsta_friend_invite_token')
-    }
-  }, [])
 
   if (loading) {
     return (
