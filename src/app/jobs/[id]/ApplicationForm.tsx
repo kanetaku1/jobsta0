@@ -2,13 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { Users, CheckCircle, UserPlus } from 'lucide-react'
-import { FriendList } from '@/components/FriendList'
-import { 
-    createApplicationGroup, 
-    getCurrentUserId,
-    getFriends,
-    getApplicationGroups 
-} from '@/lib/localStorage'
+import { FriendList } from '@/components/friends/FriendList'
+import { createApplication } from '@/lib/actions/applications'
+import { getFriends } from '@/lib/actions/friends'
 import { useToast } from '@/components/ui/use-toast'
 
 type ApplicationFormProps = {
@@ -24,8 +20,11 @@ export function ApplicationForm({ jobId, jobTitle }: ApplicationFormProps) {
     const { toast } = useToast()
 
     useEffect(() => {
-        const friends = getFriends()
-        setHasFriends(friends.length > 0)
+        const loadFriends = async () => {
+            const friends = await getFriends()
+            setHasFriends(friends.length > 0)
+        }
+        loadFriends()
     }, [])
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -41,24 +40,23 @@ export function ApplicationForm({ jobId, jobTitle }: ApplicationFormProps) {
         }
 
         try {
-            const userId = getCurrentUserId()
+            // 応募を作成（友達が選択されている場合）
+            const application = await createApplication(jobId, selectedFriendIds)
             
-            // 応募グループを作成（友達が選択されている場合）
-            if (selectedFriendIds.length > 0) {
-                createApplicationGroup(jobId, userId, selectedFriendIds, jobTitle)
-                
-                toast({
-                    title: '応募を送信しました',
-                    description: `${selectedFriendIds.length}人の友達に通知を送信しました。承認を待っています。`,
-                })
+            if (application) {
+                if (selectedFriendIds.length > 0) {
+                    toast({
+                        title: '応募を送信しました',
+                        description: `${selectedFriendIds.length}人の友達に通知を送信しました。承認を待っています。`,
+                    })
+                } else {
+                    toast({
+                        title: '応募が完了しました',
+                        description: '応募情報を送信しました',
+                    })
+                }
             } else {
-                // 友達なしで応募する場合（単独応募）
-                createApplicationGroup(jobId, userId, [], jobTitle)
-                
-                toast({
-                    title: '応募が完了しました',
-                    description: '応募情報を送信しました',
-                })
+                throw new Error('応募の作成に失敗しました')
             }
 
             setSubmitted(true)

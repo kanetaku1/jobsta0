@@ -9,14 +9,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { QRCodeSVG } from 'qrcode.react'
-import { 
-  getFriends, 
-  addFriend, 
-  removeFriend,
-  getCurrentUserId,
-  generateFriendInviteLink,
-  saveFriends
-} from '@/lib/localStorage'
+import { getFriends, addFriend, removeFriend } from '@/lib/actions/friends'
+import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
 import type { Friend } from '@/types/application'
 
 export default function FriendsPage() {
@@ -30,14 +24,27 @@ export default function FriendsPage() {
   const [copiedLink, setCopiedLink] = useState(false)
   const [showQRCode, setShowQRCode] = useState(false)
 
+  const loadFriends = async () => {
+    // クライアント側キャッシュを確認
+    const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+    const cacheKey = createCacheKey('friends')
+    const cached = clientCache.get<Friend[]>(cacheKey)
+    
+    if (cached) {
+      setFriends(cached)
+      return
+    }
+    
+    const friendsList = await getFriends()
+    setFriends(friendsList)
+    
+    // キャッシュに保存（30秒TTL）
+    clientCache.set(cacheKey, friendsList, 30000)
+  }
+
   useEffect(() => {
     loadFriends()
-  }, [])
-
-  const loadFriends = () => {
-    const friendsList = getFriends()
-    setFriends(friendsList)
-  }
+  }, []) // 初回のみ実行
 
   // 友達追加モーダルは招待リンクとQRコードを表示するだけ
   // 名前入力は不要
@@ -49,7 +56,7 @@ export default function FriendsPage() {
     setIsAddModalOpen(true)
   }
 
-  const handleUpdateFriend = () => {
+  const handleUpdateFriend = async () => {
     if (!editingFriend || !newFriendName.trim()) {
       toast({
         title: 'エラー',
@@ -59,38 +66,72 @@ export default function FriendsPage() {
       return
     }
 
-    const updatedFriends = friends.map(f => 
-      f.id === editingFriend.id
-        ? { ...f, name: newFriendName.trim(), email: newFriendEmail.trim() || undefined }
-        : f
-    )
-    
-    saveFriends(updatedFriends)
-    
-    loadFriends()
-    setEditingFriend(null)
-    setNewFriendName('')
-    setNewFriendEmail('')
-    setIsAddModalOpen(false)
-    
-    toast({
-      title: '友達情報を更新しました',
+    // 友達情報の更新は、削除して再追加で実現
+    await removeFriend(editingFriend.id)
+    const result = await addFriend({
+      name: newFriendName.trim(),
+      email: newFriendEmail.trim() || undefined,
     })
-  }
-
-  const handleDeleteFriend = (friendId: string) => {
-    if (confirm('この友達を削除しますか？')) {
-      removeFriend(friendId)
-      loadFriends()
+    
+    if (result) {
+      // キャッシュを無効化
+      const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+      const cacheKey = createCacheKey('friends')
+      clientCache.delete(cacheKey)
+      
+      await loadFriends()
+      setEditingFriend(null)
+      setNewFriendName('')
+      setNewFriendEmail('')
+      setIsAddModalOpen(false)
+      
       toast({
-        title: '友達を削除しました',
+        title: '友達情報を更新しました',
+      })
+    } else {
+      toast({
+        title: 'エラー',
+        description: '友達情報の更新に失敗しました',
+        variant: 'destructive',
       })
     }
   }
 
+  const handleDeleteFriend = async (friendId: string) => {
+    if (confirm('この友達を削除しますか？')) {
+      const success = await removeFriend(friendId)
+      if (success) {
+        // キャッシュを無効化
+        const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+        const cacheKey = createCacheKey('friends')
+        clientCache.delete(cacheKey)
+        
+        await loadFriends()
+        toast({
+          title: '友達を削除しました',
+        })
+      } else {
+        toast({
+          title: 'エラー',
+          description: '友達の削除に失敗しました',
+          variant: 'destructive',
+        })
+      }
+    }
+  }
+
   const handleCopyLink = () => {
-    const userId = getCurrentUserId()
-    const inviteLink = generateFriendInviteLink(userId)
+    const user = getCurrentUserFromAuth0()
+    if (!user) {
+      toast({
+        title: 'エラー',
+        description: 'ログインが必要です',
+        variant: 'destructive',
+      })
+      return
+    }
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+    const inviteLink = `${baseUrl}/friends/invite?from=${user.id}`
     navigator.clipboard.writeText(inviteLink)
     setCopiedLink(true)
     toast({
@@ -279,7 +320,12 @@ export default function FriendsPage() {
                 <Input
                   type="text"
                   readOnly
-                  value={generateFriendInviteLink(getCurrentUserId())}
+                  value={(() => {
+                    const user = getCurrentUserFromAuth0()
+                    if (!user) return ''
+                    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+                    return `${baseUrl}/friends/invite?from=${user.id}`
+                  })()}
                   className="flex-1 text-sm"
                 />
                 <Button
@@ -303,7 +349,15 @@ export default function FriendsPage() {
               </div>
 
               <div className="flex items-center justify-center p-4 bg-gray-50 rounded border border-gray-200">
-                <QRCodeSVG value={generateFriendInviteLink(getCurrentUserId())} size={200} />
+                <QRCodeSVG 
+                  value={(() => {
+                    const user = getCurrentUserFromAuth0()
+                    if (!user) return ''
+                    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+                    return `${baseUrl}/friends/invite?from=${user.id}`
+                  })()} 
+                  size={200} 
+                />
               </div>
               <p className="text-xs text-gray-500 text-center">
                 QRコードをスキャンして友達を追加

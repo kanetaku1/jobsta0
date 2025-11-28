@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
-import { getCurrentUserId, createApplicationGroup } from '@/lib/localStorage'
+import { createApplication } from '@/lib/actions/applications'
 
 type IndividualApplicationFormProps = {
   jobId: string
@@ -36,17 +36,19 @@ export function IndividualApplicationForm({ jobId, jobTitle, onSuccess }: Indivi
     setSubmitting(true)
 
     try {
-      const userId = getCurrentUserId()
+      // 個人応募の場合は、友達なしで応募を作成
+      const application = await createApplication(jobId, [])
       
-      // 個人応募の場合は、友達なしで応募グループを作成
-      createApplicationGroup(jobId, userId, [], jobTitle)
-      
-      toast({
-        title: '応募が完了しました',
-        description: '応募情報を送信しました',
-      })
+      if (application) {
+        toast({
+          title: '応募が完了しました',
+          description: '応募情報を送信しました',
+        })
 
-      onSuccess()
+        onSuccess()
+      } else {
+        throw new Error('応募の作成に失敗しました')
+      }
     } catch (error) {
       toast({
         title: 'エラー',

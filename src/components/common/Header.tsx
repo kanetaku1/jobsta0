@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { NotificationDropdown } from '@/components/NotificationDropdown'
+import { NotificationDropdown } from '@/components/notifications/NotificationDropdown'
 import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
 
 /**
@@ -31,6 +31,7 @@ function getUserFromToken() {
 
 export function Header() {
   const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
@@ -42,15 +43,19 @@ export function Header() {
     loadUser()
 
     // クッキーの変更を監視（ログイン/ログアウト時に更新）
+    // 間隔を長くして負荷を軽減（5秒）
     const checkAuthInterval = setInterval(() => {
       const currentUser = getUserFromToken()
-      if (currentUser?.id !== user?.id) {
-        setUser(currentUser)
-      }
-    }, 1000)
+      setUser((prevUser: any) => {
+        if (currentUser?.id !== prevUser?.id) {
+          return currentUser
+        }
+        return prevUser
+      })
+    }, 5000)
 
     return () => clearInterval(checkAuthInterval)
-  }, [user?.id])
+  }, []) // 初回のみ実行
 
   const handleLogout = async () => {
     // Auth0のトークンをクッキーから削除
@@ -59,6 +64,11 @@ export function Header() {
       document.cookie = 'auth0_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     }
     router.push('/login')
+  }
+
+  // /employer配下ではHeaderを表示しない
+  if (pathname?.startsWith('/employer')) {
+    return null
   }
 
   return (
@@ -103,3 +113,4 @@ export function Header() {
     </header>
   )
 }
+

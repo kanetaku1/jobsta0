@@ -3,22 +3,21 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, CheckCircle, Clock, XCircle, Send, UserPlus, Copy, Users, User } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Send, UserPlus, Users, User, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/use-toast'
-import { getJob } from '@/utils/getData'
-import { 
-  getCurrentUserId,
-  getGroupsByJobId,
-  getGroup,
-  updateGroupMemberStatus,
-  createApplicationGroup,
-  generateInviteLink
-} from '@/lib/localStorage'
-import { GroupCreateModal } from '@/components/GroupCreateModal'
-import { IndividualApplicationForm } from '@/components/IndividualApplicationForm'
-import type { GroupMemberStatus, GroupMember, Group } from '@/types/application'
+import { getJob } from '@/lib/utils/getData'
+import { getGroups, getGroup } from '@/lib/actions/groups'
+import { createApplication } from '@/lib/actions/applications'
+import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getApprovedMembers, getParticipatingMembers, canSubmitApplication } from '@/lib/utils/group'
+import { GroupCreateModal } from '@/components/groups/GroupCreateModal'
+import { GroupInviteLinkModal } from '@/components/groups/GroupInviteLinkModal'
+import { GroupMemberList } from '@/components/groups/GroupMemberList'
+import { IndividualApplicationForm } from '@/components/applications/IndividualApplicationForm'
+import { JobInfo } from '@/components/jobs/JobInfo'
+import type { Group, GroupMember } from '@/types/application'
 
 export default function ApplyPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
@@ -31,6 +30,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [applicationType, setApplicationType] = useState<'individual' | 'group'>('group') // 個人 or グループ応募
   const [applicationSubmitted, setApplicationSubmitted] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -39,19 +39,52 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
       setJobId(id)
       
       try {
-        const jobData = await getJob(id)
-        setJob(jobData)
+        // クライアント側キャッシュを確認
+        const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+        const jobCacheKey = createCacheKey('job', id)
+        const cachedJob = clientCache.get<any>(jobCacheKey)
+        
+        if (cachedJob) {
+          setJob(cachedJob)
+        } else {
+          const jobData = await getJob(id)
+          setJob(jobData)
+          // キャッシュに保存（5分TTL）
+          if (jobData) {
+            clientCache.set(jobCacheKey, jobData, 5 * 60 * 1000)
+          }
+        }
 
-        // Auth0のIDトークンからユーザーIDを取得（getCurrentUserId()が既にAuth0対応済み）
-        const userId = getCurrentUserId()
+        // Auth0のIDトークンからユーザーIDを取得
+        const user = getCurrentUserFromAuth0()
+        if (!user) {
+          setLoading(false)
+          return
+        }
         
-        // 求人ごとのグループを取得
-        const jobGroups = getGroupsByJobId(id, userId)
-        setGroups(jobGroups)
+        // クライアント側キャッシュを確認
+        const groupsCacheKey = createCacheKey('groups', id, user.id)
+        const cachedGroups = clientCache.get<typeof groups>(groupsCacheKey)
         
-        if (jobGroups.length > 0) {
-          setSelectedGroupId(jobGroups[0].id)
-          setApplicationType('group')
+        if (cachedGroups) {
+          setGroups(cachedGroups)
+          if (cachedGroups.length > 0) {
+            setSelectedGroupId(cachedGroups[0].id)
+            setApplicationType('group')
+          }
+        } else {
+          // 求人ごとのグループを取得
+          const jobGroups = await getGroups(id)
+          const userGroups = jobGroups.filter(g => g.ownerUserId === user.id)
+          setGroups(userGroups)
+          
+          // キャッシュに保存（30秒TTL）
+          clientCache.set(groupsCacheKey, userGroups, 30000)
+          
+          if (jobGroups.length > 0) {
+            setSelectedGroupId(jobGroups[0].id)
+            setApplicationType('group')
+          }
         }
       } catch (error) {
         console.error('Error loading data:', error)
@@ -66,13 +99,21 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   // 友達自身が承認/辞退する機能は招待リンクページで実装
   // この画面では承認状況を確認するのみ
 
-  const handleGroupCreated = (newGroup: Group) => {
-    const userId = getCurrentUserId()
+  const handleGroupCreated = async (newGroup: Group) => {
+    const user = getCurrentUserFromAuth0()
+    if (!user) return
+    
     // 求人ごとのグループを再取得
-    const jobGroups = getGroupsByJobId(jobId, userId)
-    setGroups(jobGroups)
+    const jobGroups = await getGroups(jobId)
+    const userGroups = jobGroups.filter(g => g.ownerUserId === user.id)
+    setGroups(userGroups)
     setSelectedGroupId(newGroup.id)
     setIsCreateModalOpen(false)
+    
+    // キャッシュを更新
+    const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+    const groupsCacheKey = createCacheKey('groups', jobId, user.id)
+    clientCache.set(groupsCacheKey, userGroups, 30000)
   }
 
   const handleSubmitApplication = async () => {
@@ -85,7 +126,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
       return
     }
 
-    const group = getGroup(selectedGroupId)
+    const group = await getGroup(selectedGroupId)
     if (!group) {
       toast({
         title: 'エラー',
@@ -95,28 +136,41 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
       return
     }
 
-    // 承認人数が希望者数に達しているか確認
-    const approvedCount = group.members.filter(m => m.status === 'approved').length
-    const requiredCount = group.requiredCount || group.members.length
+    // グループの応募送信可否を判定
+    const { canSubmit, approvedCount, participatingCount, requiredCount } = canSubmitApplication(group)
+    
+    // グループ参加の承認人数が希望者数に達しているか確認
     if (approvedCount < requiredCount) {
       toast({
         title: 'エラー',
-        description: `承認が必要です（${approvedCount}/${requiredCount}人承認済み）`,
+        description: `グループ参加の承認が必要です（${approvedCount}/${requiredCount}人承認済み）`,
         variant: 'destructive',
       })
       return
     }
+    
+    // 応募に参加するメンバーが希望者数に達しているか確認
+    if (participatingCount < requiredCount) {
+      toast({
+        title: 'エラー',
+        description: `応募に参加するメンバーが不足しています（${participatingCount}/${requiredCount}人参加）`,
+        variant: 'destructive',
+      })
+      return
+    }
+    
+    // 応募に参加しているメンバーを取得
+    const participatingMembers = getParticipatingMembers(group)
 
     try {
-      // Auth0のIDトークンからユーザーIDを取得（getCurrentUserId()が既にAuth0対応済み）
-      const userId = getCurrentUserId()
-      const memberIds = group.members.map(m => m.id)
+      // 応募に参加しているメンバーのIDのみを送信
+      const memberIds = participatingMembers.map(m => m.userId || m.id).filter(Boolean) as string[]
       
-      createApplicationGroup(jobId, userId, memberIds, job?.title, selectedGroupId)
+      await createApplication(jobId, memberIds, selectedGroupId)
       
       toast({
         title: '応募が完了しました',
-        description: 'グループ全員で応募しました',
+        description: `${participatingMembers.length}人で応募しました`,
       })
 
       setApplicationSubmitted(true)
@@ -156,9 +210,9 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   }
 
   const selectedGroup = groups.find(g => g.id === selectedGroupId)
-  const approvedCount = selectedGroup?.members.filter((m: GroupMember) => m.status === 'approved').length || 0
-  const requiredCount = selectedGroup?.requiredCount || selectedGroup?.members.length || 0
-  const canSubmit = approvedCount >= requiredCount
+  const { canSubmit, approvedCount, participatingCount, requiredCount } = selectedGroup 
+    ? canSubmitApplication(selectedGroup)
+    : { canSubmit: false, approvedCount: 0, participatingCount: 0, requiredCount: 0 }
   const hasPending = selectedGroup?.members.some((m: GroupMember) => m.status === 'pending') || false
 
   return (
@@ -173,26 +227,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
         </Link>
 
         <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            {job.title || 'タイトルなし'}
-          </h1>
-          <div className="space-y-2 mb-6">
-            {job.location && (
-              <p className="text-gray-600">
-                <span className="font-semibold">場所:</span> {job.location}
-              </p>
-            )}
-            {job.wage_amount && (
-              <p className="text-blue-600 font-bold text-xl">
-                時給: {job.wage_amount.toLocaleString()}円
-              </p>
-            )}
-            {job.job_date && (
-              <p className="text-gray-600">
-                <span className="font-semibold">シフト:</span> {new Date(job.job_date).toLocaleDateString('ja-JP')}
-              </p>
-            )}
-          </div>
+          <JobInfo job={job} variant="detailed" />
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-8">
@@ -266,152 +301,103 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
               ) : (
                 <>
                   <div className="mb-6 flex items-center justify-between">
-            <div className="flex-1">
-              {groups.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {groups.length > 1 ? 'グループを選択' : 'グループ'}
-                  </label>
-                  {groups.length > 1 ? (
-                    <select
-                      value={selectedGroupId}
-                      onChange={(e) => setSelectedGroupId(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      {groups.map((group) => (
-                        <option key={group.id} value={group.id}>
-                          {group.ownerName}のグループ
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <p className="text-gray-700">{groups[0]?.ownerName}のグループ</p>
-                  )}
-                </div>
-              )}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsCreateModalOpen(true)}
-              className="ml-4 flex items-center gap-2"
-            >
-              <UserPlus size={16} />
-              新しくグループを作成
-            </Button>
-          </div>
-
-          {groups.length === 0 ? (
-            <div className="text-center py-12 border border-gray-200 rounded-lg bg-gray-50">
-              <p className="text-gray-600 mb-4">グループがありません</p>
-              <p className="text-sm text-gray-500 mb-4">
-                友達と一緒に応募するために、まずグループを作成してください
-              </p>
-              <Button onClick={() => setIsCreateModalOpen(true)}>
-                グループを作成する
-              </Button>
-            </div>
-          ) : (
-            <>
-
-              {selectedGroup && (
-                <div className="space-y-4 mb-6">
-                  <h3 className="text-lg font-semibold text-gray-800 mb-4">
-                    友達の同意状況
-                  </h3>
-                  
-                  <div className="space-y-3">
-                    {selectedGroup.members.map((member: GroupMember) => (
-                      <div
-                        key={member.id}
-                        className="flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+                    <div className="flex-1">
+                      {groups.length > 0 && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {groups.length > 1 ? 'グループを選択' : 'グループ'}
+                          </label>
+                          {groups.length > 1 ? (
+                            <select
+                              value={selectedGroupId}
+                              onChange={(e) => setSelectedGroupId(e.target.value)}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              {groups.map((group) => (
+                                <option key={group.id} value={group.id}>
+                                  {group.ownerName}のグループ
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <p className="text-gray-700">{groups[0]?.ownerName}のグループ</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      {selectedGroupId && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowInviteModal(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <Share2 size={16} />
+                          招待リンクを表示
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="flex items-center gap-2"
                       >
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{member.name}</p>
-                          {member.inviteLink && (
-                            <div className="mt-2">
-                              <p className="text-xs text-gray-500 mb-1">招待リンク:</p>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="text"
-                                  readOnly
-                                  value={member.inviteLink}
-                                  className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded bg-gray-50"
-                                />
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(member.inviteLink)
-                                    toast({
-                                      title: 'コピーしました',
-                                      description: '招待リンクをクリップボードにコピーしました',
-                                    })
-                                  }}
-                                  className="text-xs"
-                                >
-                                  <Copy size={12} className="mr-1" />
-                                  コピー
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        
-                        <div className="flex items-center gap-3">
-                          {member.status === 'pending' && (
-                            <Badge variant="default" className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                              <Clock size={12} className="mr-1" />
-                              承認待ち
-                            </Badge>
-                          )}
-                          {member.status === 'approved' && (
-                            <Badge variant="default" className="bg-green-100 text-green-800 border-green-300">
-                              <CheckCircle size={12} className="mr-1" />
-                              承認済み
-                            </Badge>
-                          )}
-                          {member.status === 'rejected' && (
-                            <Badge variant="outline" className="text-red-600 border-red-300">
-                              <XCircle size={12} className="mr-1" />
-                              辞退
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                        <UserPlus size={16} />
+                        新しくグループを作成
+                      </Button>
+                    </div>
                   </div>
-                  
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-800">
-                      💡 友達には招待リンクを送って、承認/辞退してもらってください。
-                    </p>
-                  </div>
-                </div>
-              )}
 
-              <div className="pt-6 border-t border-gray-200">
-                <Button
-                  onClick={handleSubmitApplication}
-                  disabled={!canSubmit || hasPending}
-                  className="w-full bg-blue-600 text-white py-6 text-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Send size={20} />
-                  全員揃ったら応募する
-                </Button>
+                  {groups.length === 0 ? (
+                    <div className="text-center py-12 border border-gray-200 rounded-lg bg-gray-50">
+                      <p className="text-gray-600 mb-4">グループがありません</p>
+                      <p className="text-sm text-gray-500 mb-4">
+                        友達と一緒に応募するために、まずグループを作成してください
+                      </p>
+                      <Button onClick={() => setIsCreateModalOpen(true)}>
+                        グループを作成する
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+
+                      {selectedGroup && (
+                        <div className="mb-6">
+                          <GroupMemberList
+                            group={selectedGroup}
+                            onGroupUpdate={(updatedGroup) => {
+                              setGroups(groups.map(g => g.id === selectedGroupId ? updatedGroup : g))
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      <div className="pt-6 border-t border-gray-200">
+                        <Button
+                          onClick={handleSubmitApplication}
+                          disabled={!canSubmit || hasPending}
+                          className="w-full bg-blue-600 text-white py-6 text-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Send size={20} />
+                          全員揃ったら応募する
+                        </Button>
                 {!canSubmit && (
                   <p className="text-sm text-gray-500 text-center mt-2">
-                    {approvedCount}/{requiredCount}人承認済み（承認が必要です）
+                    グループ参加: {approvedCount}/{requiredCount}人承認済み
+                    {approvedCount >= requiredCount && (
+                      <> / 応募参加: {participatingCount}/{requiredCount}人</>
+                    )}
                   </p>
                 )}
-              </div>
+                      </div>
+                    </>
+                  )}
+
+                </>
+              )}
             </>
           )}
-
-                  </>
-                )}
-              </>
-            )}
 
           <GroupCreateModal
             isOpen={isCreateModalOpen}
@@ -419,6 +405,15 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
             onGroupCreated={handleGroupCreated}
             jobId={jobId}
           />
+
+          {/* グループ招待リンク表示モーダル */}
+          {selectedGroup && (
+            <GroupInviteLinkModal
+              isOpen={showInviteModal}
+              onClose={() => setShowInviteModal(false)}
+              group={selectedGroup}
+            />
+          )}
         </div>
       </div>
     </div>

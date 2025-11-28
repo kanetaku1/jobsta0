@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Bell, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { NotificationIcon } from '@/components/NotificationIcon'
+import { NotificationIcon } from '@/components/notifications/NotificationIcon'
 import { useNotifications } from '@/hooks/useNotifications'
-import { getNotificationRoute } from '@/utils/notifications'
+import { getNotificationRoute } from '@/lib/utils/notifications'
 import type { Notification } from '@/types/application'
 
 export function NotificationDropdown() {
@@ -18,7 +18,7 @@ export function NotificationDropdown() {
   const { notifications, unreadCount, handleMarkAsRead } = useNotifications({
     limit: 10,
     autoRefresh: true,
-    refreshInterval: 2000,
+    // refreshIntervalはデフォルトの30秒を使用
   })
 
   // クリックアウトサイドで閉じる

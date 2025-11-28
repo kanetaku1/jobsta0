@@ -1,0 +1,203 @@
+'use server'
+
+import { requireAuth } from '@/lib/auth/get-current-user'
+import { prisma } from '@/lib/prisma/client'
+import { unstable_cache } from 'next/cache'
+import { CACHE_TAGS } from '@/lib/cache/server-cache'
+import { randomUUID } from 'crypto'
+import type { ApplicationGroup, ApplicationGroupStatus } from '@/types/application'
+
+/**
+ * ユーザーの応募一覧を取得（キャッシュ付き）
+ */
+export async function getApplications(): Promise<ApplicationGroup[]> {
+  try {
+    const user = await requireAuth()
+    
+    const cacheKey = `applications:${user.id}`
+    
+    const getApplicationsData = async () => {
+      const applications = await prisma.application.findMany({
+        where: { applicantId: user.id },
+        include: {
+          job: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+          group: {
+            include: {
+              members: {
+                select: {
+                  id: true,
+                  userId: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      return applications.map((app) => ({
+        id: app.id,
+        jobId: app.jobId,
+        applicantUserId: app.applicantId,
+        friendUserIds: app.group?.members
+          .filter((m) => m.userId && m.userId !== app.applicantId)
+          .map((m) => m.userId!)
+          || [],
+        groupId: app.groupId || undefined,
+        status: app.status.toLowerCase() as ApplicationGroupStatus,
+        createdAt: app.createdAt.toISOString(),
+        updatedAt: app.updatedAt.toISOString(),
+      }))
+    }
+
+    return await unstable_cache(
+      getApplicationsData,
+      [cacheKey],
+      {
+        revalidate: 30, // 30秒キャッシュ
+        tags: [CACHE_TAGS.APPLICATIONS, `${CACHE_TAGS.APPLICATIONS}:${user.id}`],
+      }
+    )()
+  } catch (error) {
+    console.error('Error getting applications:', error)
+    return []
+  }
+}
+
+/**
+ * 応募を作成
+ */
+export async function createApplication(
+  jobId: string,
+  friendUserIds: string[],
+  groupId?: string
+): Promise<ApplicationGroup | null> {
+  try {
+    const user = await requireAuth()
+
+    // 求人が存在するか確認
+    const job = await prisma.job.findUnique({
+      where: { id: jobId },
+    })
+
+    if (!job) {
+      throw new Error('求人が見つかりません')
+    }
+
+    // グループが指定されている場合は、そのグループを使用
+    let finalGroupId = groupId
+    if (!finalGroupId && friendUserIds.length > 0) {
+      // グループが指定されていない場合は、新しいグループを作成
+      const group = await prisma.group.create({
+        data: {
+          id: randomUUID(),
+          ownerId: user.id,
+          ownerName: user.displayName || user.name || 'ユーザー',
+          ...(jobId ? { jobId } : {}),
+          members: {
+            create: friendUserIds.map((friendUserId) => ({
+              id: randomUUID(),
+              name: '', // 後で更新される可能性がある
+              userId: friendUserId,
+              status: 'PENDING',
+            })),
+          },
+        } as any,
+      })
+      finalGroupId = group.id
+    }
+
+    const application = await prisma.application.create({
+      data: {
+        id: randomUUID(),
+        jobId,
+        groupId: finalGroupId,
+        applicantId: user.id,
+        status: 'PENDING',
+      },
+      include: {
+        group: {
+          include: {
+            members: {
+              select: {
+                id: true,
+                userId: true,
+              },
+            },
+          },
+        },
+      },
+    })
+
+    // キャッシュを無効化
+    const { revalidateTag } = await import('next/cache')
+    revalidateTag(CACHE_TAGS.APPLICATIONS)
+    revalidateTag(`${CACHE_TAGS.APPLICATIONS}:${user.id}`)
+    if (finalGroupId) {
+      revalidateTag(CACHE_TAGS.GROUPS)
+      revalidateTag(`group:${finalGroupId}`)
+    }
+
+    return {
+      id: application.id,
+      jobId: application.jobId,
+      applicantUserId: application.applicantId,
+      friendUserIds: application.group?.members
+        .filter((m) => m.userId && m.userId !== application.applicantId)
+        .map((m) => m.userId!)
+        || [],
+      groupId: application.groupId || undefined,
+      status: application.status.toLowerCase() as ApplicationGroupStatus,
+      createdAt: application.createdAt.toISOString(),
+      updatedAt: application.updatedAt.toISOString(),
+    }
+  } catch (error) {
+    console.error('Error creating application:', error)
+    return null
+  }
+}
+
+/**
+ * 応募ステータスを更新
+ */
+export async function updateApplicationStatus(
+  applicationId: string,
+  status: ApplicationGroupStatus
+): Promise<boolean> {
+  try {
+    const user = await requireAuth()
+
+    // 応募が存在し、所有者であることを確認
+    const application = await prisma.application.findUnique({
+      where: { id: applicationId },
+      select: { applicantId: true },
+    })
+
+    if (!application || application.applicantId !== user.id) {
+      throw new Error('応募が見つからないか、権限がありません')
+    }
+
+    await prisma.application.update({
+      where: { id: applicationId },
+      data: {
+        status: status.toUpperCase() as any,
+      },
+    })
+
+    // キャッシュを無効化
+    const { revalidateTag } = await import('next/cache')
+    revalidateTag(CACHE_TAGS.APPLICATIONS)
+    revalidateTag(`${CACHE_TAGS.APPLICATIONS}:${user.id}`)
+
+    return true
+  } catch (error) {
+    console.error('Error updating application status:', error)
+    return false
+  }
+}
+

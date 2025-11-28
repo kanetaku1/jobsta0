@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { ArrowLeft, Bell } from 'lucide-react'
-import { NotificationsList } from '@/components/NotificationsList'
+import { NotificationsList } from '@/components/notifications/NotificationsList'
 import { useNotifications } from '@/hooks/useNotifications'
 
 export default function NotificationsPage() {

@@ -5,17 +5,6 @@ export type Friend = {
   email?: string
 }
 
-// 求人への興味ステータス
-export type JobInterestStatus = 'interested' | 'not_interested' | 'none'
-
-// 求人への興味情報
-export type JobInterest = {
-  userId: string
-  jobId: string
-  status: JobInterestStatus
-  updatedAt: string
-}
-
 // 応募グループの状態
 export type ApplicationGroupStatus = 'pending' | 'approved' | 'rejected' | 'completed'
 
@@ -32,14 +21,15 @@ export type ApplicationGroup = {
 }
 
 // 通知の型
-export type NotificationType = 'application_invitation' | 'application_approved' | 'application_rejected'
+export type NotificationType = 'application_invitation' | 'application_approved' | 'application_rejected' | 'group_invitation'
 
 // 通知
 export type Notification = {
   id: string
   userId: string // 通知を受けるユーザー
   type: NotificationType
-  applicationGroupId: string
+  applicationGroupId?: string // 応募グループID（application_invitation等の場合）
+  groupId?: string // グループID（group_invitationの場合）
   jobId: string
   jobTitle?: string
   fromUserName: string // 通知を送ったユーザー名
@@ -51,12 +41,16 @@ export type Notification = {
 // グループメンバーの承認状況
 export type GroupMemberStatus = 'pending' | 'approved' | 'rejected'
 
+// 応募への参加状況
+export type ApplicationParticipationStatus = 'participating' | 'not_participating' | 'pending'
+
 // グループメンバー
 export type GroupMember = {
   id: string
   name: string
-  inviteLink: string // 招待リンク（必須、自動生成）
-  status: GroupMemberStatus
+  status: GroupMemberStatus // グループ参加の承認状況
+  applicationStatus?: ApplicationParticipationStatus // 応募への参加状況
+  userId?: string // ユーザーID（トグル操作のため）
 }
 
 // グループ
@@ -67,6 +61,7 @@ export type Group = {
   ownerUserId: string
   members: GroupMember[]
   requiredCount: number // 希望者数（承認が必要な人数）
+  groupInviteLink: string // グループ全体の招待リンク
   createdAt: string
   updatedAt: string
 }

@@ -1,6 +1,6 @@
-import { getJobsAll } from '@/utils/getData'
+import { getJobsAll } from '@/lib/utils/getData'
 import Link from 'next/link'
-import { JobCard } from '@/components/JobCard'
+import { JobCard } from '@/components/jobs/JobCard'
 
 export default async function JobsPage() {
     const jobs = await getJobsAll()
