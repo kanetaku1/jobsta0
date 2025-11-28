@@ -82,3 +82,20 @@ export async function requireAuth() {
   return user
 }
 
+/**
+ * 事業者ロールを持つユーザーのみアクセス可能
+ * 認証されていない場合、または事業者ロールでない場合はエラーをスロー
+ * 
+ * @returns 事業者ロールを持つユーザー情報
+ * @throws 認証されていない場合、または事業者ロールでない場合
+ */
+export async function requireEmployer() {
+  const user = await requireAuth()
+  
+  if ((user as any).role !== 'EMPLOYER') {
+    throw new Error('この機能にアクセスするには事業者ロールが必要です。')
+  }
+  
+  return user
+}
+

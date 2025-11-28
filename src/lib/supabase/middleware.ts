@@ -6,10 +6,14 @@ import { getAuth0IdTokenFromRequest, getUserFromAuth0Token } from '@/lib/auth/au
  * Auth0のIDトークンをクッキーから取得し、認証状態を確認します
  */
 export async function updateSession(request: NextRequest) {
-  // ログインページと認証コールバックページは認証チェックをスキップ
+  const pathname = request.nextUrl.pathname
+
+  // 求人作成者用ページとログインページ、認証コールバックページは認証チェックをスキップ
   if (
-    request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/auth')
+    pathname.startsWith('/employer') ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/jobs') // 求人一覧・詳細ページは認証不要
   ) {
     return NextResponse.next({ request })
   }

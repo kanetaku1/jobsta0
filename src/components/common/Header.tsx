@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown'
@@ -31,7 +31,13 @@ function getUserFromToken() {
 
 export function Header() {
   const router = useRouter()
+  const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
+
+  // /employer配下ではHeaderを表示しない
+  if (pathname?.startsWith('/employer')) {
+    return null
+  }
 
   useEffect(() => {
     const loadUser = () => {

@@ -44,5 +44,6 @@ export const CACHE_TAGS = {
   APPLICATIONS: 'applications',
   NOTIFICATIONS: 'notifications',
   USER: 'user',
+  JOBS: 'jobs',
 } as const
 

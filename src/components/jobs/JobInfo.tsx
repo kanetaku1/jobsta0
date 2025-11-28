@@ -29,6 +29,13 @@ export function JobInfo({
         {job.title || 'タイトルなし'}
       </h2>
       
+      {job.company_name && (
+        <p className={`text-gray-500 ${
+          variant === 'compact' ? 'text-xs' : 'text-sm'
+        } mb-2`}>
+          {job.company_name}
+        </p>
+      )}
       <div className={baseClasses}>
         {job.location && (
           <p className={`text-gray-600 ${
@@ -51,7 +58,21 @@ export function JobInfo({
             <span className="font-semibold">シフト:</span> {new Date(job.job_date).toLocaleDateString('ja-JP')}
           </p>
         )}
-        {showDescription && job.description && (
+        {job.recruitment_count && (
+          <p className={`text-gray-600 ${
+            variant === 'compact' ? 'text-xs' : 'text-sm'
+          }`}>
+            <span className="font-semibold">募集人数:</span> {job.recruitment_count}名
+          </p>
+        )}
+        {showDescription && job.job_content && (
+          <p className={`text-gray-700 ${
+            variant === 'compact' ? 'text-xs' : 'text-sm'
+          }`}>
+            {job.job_content}
+          </p>
+        )}
+        {showDescription && !job.job_content && job.description && (
           <p className={`text-gray-700 ${
             variant === 'compact' ? 'text-xs' : 'text-sm'
           }`}>
