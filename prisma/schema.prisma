@@ -29,6 +29,8 @@ model User {
   groupMembers  GroupMember[]
   applications  Application[]
   notifications Notification[]
+  friends       Friend[]        @relation("UserFriends")
+  friendOf      Friend[]        @relation("FriendOfUser")
 
   @@index([supabaseId])
   @@index([lineId])
@@ -40,6 +42,7 @@ model Group {
   id          String   @id @default(uuid())
   ownerId     String
   ownerName   String   // グループ作成者の名前
+  jobId       String?  // 求人ID（求人ごとにグループを作成）
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -49,6 +52,7 @@ model Group {
   applications Application[]
 
   @@index([ownerId])
+  @@index([jobId])
   @@map("groups")
 }
 
@@ -155,4 +159,23 @@ enum NotificationType {
   APPLICATION_INVITATION
   APPLICATION_APPROVED
   APPLICATION_REJECTED
+}
+
+// ==================== 友達 ====================
+model Friend {
+  id           String   @id @default(uuid())
+  userId       String   // 友達を追加したユーザーID
+  friendUserId String?  // 友達のユーザーID（ログイン済みの場合）
+  name         String   // 友達の名前
+  email        String?  // 友達のメールアドレス
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // リレーション
+  user         User     @relation("UserFriends", fields: [userId], references: [id], onDelete: Cascade)
+  friend       User?    @relation("FriendOfUser", fields: [friendUserId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([friendUserId])
+  @@map("friends")
 }

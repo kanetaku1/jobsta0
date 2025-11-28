@@ -46,17 +46,8 @@ export default function HomePage() {
         }
         
         checkAuth()
-        
-        // クッキーの変更を監視（ログイン/ログアウト時に更新）
-        const checkAuthInterval = setInterval(() => {
-            const user = getUserFromToken()
-            if (!user && !isChecking) {
-                router.push('/login')
-            }
-        }, 2000)
-
-        return () => clearInterval(checkAuthInterval)
-    }, [router, isChecking])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [router]) // routerのみを依存配列に含める
 
     // 認証チェック中はローディング表示
     if (isChecking) {

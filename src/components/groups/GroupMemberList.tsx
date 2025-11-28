@@ -2,10 +2,11 @@
 
 import { CheckCircle, Clock, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { ApplicationToggle } from '@/components/ApplicationToggle'
-import { getCurrentUserId, getGroup, updateMemberApplicationStatus } from '@/lib/localStorage'
+import { ApplicationToggle } from '@/components/applications/ApplicationToggle'
+import { getGroup } from '@/lib/actions/groups'
+import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
 import { useToast } from '@/components/ui/use-toast'
-import { getMemberApplicationStatus } from '@/utils/group'
+import { getMemberApplicationStatus } from '@/lib/utils/group'
 import type { Group, GroupMember, ApplicationParticipationStatus } from '@/types/application'
 
 type GroupMemberListProps = {
@@ -15,13 +16,12 @@ type GroupMemberListProps = {
 
 export function GroupMemberList({ group, onGroupUpdate }: GroupMemberListProps) {
   const { toast } = useToast()
-  const currentUserId = getCurrentUserId()
+  const currentUser = getCurrentUserFromAuth0()
+  const currentUserId = currentUser?.id
 
-  const handleStatusChange = (memberId: string, status: ApplicationParticipationStatus) => {
-    updateMemberApplicationStatus(group.id, memberId, status)
-    
+  const handleStatusChange = async (memberId: string, status: ApplicationParticipationStatus) => {
     // グループ情報を再取得して表示を更新
-    const updatedGroup = getGroup(group.id)
+    const updatedGroup = await getGroup(group.id)
     if (updatedGroup) {
       onGroupUpdate?.(updatedGroup)
     }

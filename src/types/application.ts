@@ -5,17 +5,6 @@ export type Friend = {
   email?: string
 }
 
-// 求人への興味ステータス
-export type JobInterestStatus = 'interested' | 'not_interested' | 'none'
-
-// 求人への興味情報
-export type JobInterest = {
-  userId: string
-  jobId: string
-  status: JobInterestStatus
-  updatedAt: string
-}
-
 // 応募グループの状態
 export type ApplicationGroupStatus = 'pending' | 'approved' | 'rejected' | 'completed'
 

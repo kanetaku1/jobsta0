@@ -7,18 +7,10 @@ import { CheckCircle, XCircle, ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/use-toast'
-import { JobInfo } from '@/components/JobInfo'
-import { 
-  getGroupFromInvite,
-  addMemberToGroup,
-  getCurrentUserId,
-  getCurrentUserName,
-  getGroup,
-  setMemberUserId,
-  updateMemberApplicationStatus
-} from '@/lib/localStorage'
+import { JobInfo } from '@/components/jobs/JobInfo'
+import { getGroup, addMemberToGroup } from '@/lib/actions/groups'
 import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
-import { getJob } from '@/utils/getData'
+import { getJob } from '@/lib/utils/getData'
 import type { Group } from '@/types/application'
 
 export default function GroupInvitePage({ 
@@ -43,7 +35,22 @@ export default function GroupInvitePage({
       
       setGroupId(gId)
 
-      const groupData = getGroupFromInvite(gId)
+      // クライアント側キャッシュを確認
+      const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+      const groupCacheKey = createCacheKey('group', gId)
+      const cachedGroup = clientCache.get<Group>(groupCacheKey)
+
+      // グループ情報を取得（キャッシュ優先）
+      let groupData: Group | null
+      if (cachedGroup) {
+        groupData = cachedGroup
+      } else {
+        groupData = await getGroup(gId)
+        if (groupData) {
+          // キャッシュに保存（30秒TTL）
+          clientCache.set(groupCacheKey, groupData, 30000)
+        }
+      }
       
       if (!groupData) {
         toast({
@@ -57,30 +64,36 @@ export default function GroupInvitePage({
 
       setGroup(groupData)
 
-      // 求人情報を取得
-      try {
-        const jobData = await getJob(groupData.jobId)
-        setJob(jobData)
-      } catch (error) {
-        console.error('Error loading job:', error)
+      // 求人情報を取得（並列実行、キャッシュ優先）
+      const jobCacheKey = createCacheKey('job', groupData.jobId)
+      const cachedJob = clientCache.get<any>(jobCacheKey)
+      
+      if (cachedJob) {
+        setJob(cachedJob)
+      } else {
+        try {
+          const jobData = await getJob(groupData.jobId)
+          setJob(jobData)
+          if (jobData) {
+            // キャッシュに保存（5分TTL）
+            clientCache.set(jobCacheKey, jobData, 5 * 60 * 1000)
+          }
+        } catch (error) {
+          console.error('Error loading job:', error)
+        }
       }
 
       // 現在のユーザーがグループのオーナーか確認
-      const currentUserId = getCurrentUserId()
-      setIsOwner(groupData.ownerUserId === currentUserId)
+      const currentUser = getCurrentUserFromAuth0()
+      if (!currentUser) {
+        setLoading(false)
+        return
+      }
+      
+      setIsOwner(groupData.ownerUserId === currentUser.id)
       
       // 既にメンバーか確認
-      const currentUser = getCurrentUserFromAuth0()
-      const currentUserName = currentUser?.displayName || getCurrentUserName() || 'ユーザー'
-      
-      // メンバーリストに現在のユーザーが含まれているか確認
-      // 注意: 現在の実装では、メンバーにuserIdフィールドがないため、
-      // 名前で確認する（将来的に改善が必要）
-      const memberExists = groupData.members.some(m => {
-        // 簡易的な確認（実際にはuserIdで確認すべき）
-        return false
-      })
-      
+      const memberExists = groupData.members.some(m => m.userId === currentUser.id)
       setIsMember(memberExists)
 
       setLoading(false)
@@ -89,12 +102,20 @@ export default function GroupInvitePage({
     loadData()
   }, [params, toast])
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!groupId || !group) return
 
-    const currentUserId = getCurrentUserId()
     const currentUser = getCurrentUserFromAuth0()
-    const currentUserName = currentUser?.displayName || getCurrentUserName() || 'ユーザー'
+    if (!currentUser) {
+      toast({
+        title: 'エラー',
+        description: 'ログインが必要です',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    const currentUserName = currentUser.displayName || currentUser.name || 'ユーザー'
 
     // 既にメンバーの場合は何もしない
     if (isMember) {
@@ -106,18 +127,17 @@ export default function GroupInvitePage({
     }
 
     // グループにメンバーを追加
-    const result = addMemberToGroup(groupId, currentUserName, currentUserId)
+    const result = await addMemberToGroup(groupId, currentUserName, currentUser.id)
     
-    if (result.success && result.memberId) {
-      // メンバーにuserIdを設定
-      setMemberUserId(groupId, result.memberId, currentUserId)
-      // 応募参加ステータスを初期化（デフォルトは'not_participating'）
-      updateMemberApplicationStatus(groupId, result.memberId, 'not_participating')
-      
+    if (result.success) {
       // グループ情報を再取得
-      const updatedGroup = getGroup(groupId)
+      const updatedGroup = await getGroup(groupId)
       if (updatedGroup) {
         setGroup(updatedGroup)
+        // キャッシュを更新
+        const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+        const groupCacheKey = createCacheKey('group', groupId)
+        clientCache.set(groupCacheKey, updatedGroup, 30000)
       }
       
       setHasJoined(true)
