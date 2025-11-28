@@ -1,26 +1,65 @@
 'use client'
 
-import Link from 'next/link'
-import { Bell } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { getUnreadNotificationCount, getCurrentUserId } from '@/lib/localStorage'
-import { Badge } from '@/components/ui/badge'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { NotificationDropdown } from '@/components/NotificationDropdown'
+import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+
+/**
+ * Auth0のIDトークンからユーザー情報を取得（後方互換性のためのラッパー）
+ */
+function getUserFromToken() {
+  const user = getCurrentUserFromAuth0()
+  if (!user) {
+    return null
+  }
+
+  // 既存のコードとの互換性を保つため、user_metadata形式に変換
+  return {
+    id: user.id,
+    email: user.email,
+    user_metadata: {
+      name: user.name,
+      display_name: user.displayName,
+      picture: user.picture,
+      line_user_id: user.lineId,
+    },
+  }
+}
 
 export function Header() {
-  const [unreadCount, setUnreadCount] = useState(0)
+  const router = useRouter()
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    const loadUnreadCount = () => {
-      const userId = getCurrentUserId()
-      const count = getUnreadNotificationCount(userId)
-      setUnreadCount(count)
+    const loadUser = () => {
+      const userData = getUserFromToken()
+      setUser(userData)
     }
+    
+    loadUser()
 
-    loadUnreadCount()
-    // 定期的に更新
-    const interval = setInterval(loadUnreadCount, 2000)
-    return () => clearInterval(interval)
-  }, [])
+    // クッキーの変更を監視（ログイン/ログアウト時に更新）
+    const checkAuthInterval = setInterval(() => {
+      const currentUser = getUserFromToken()
+      if (currentUser?.id !== user?.id) {
+        setUser(currentUser)
+      }
+    }, 1000)
+
+    return () => clearInterval(checkAuthInterval)
+  }, [user?.id])
+
+  const handleLogout = async () => {
+    // Auth0のトークンをクッキーから削除
+    if (typeof window !== 'undefined') {
+      document.cookie = 'auth0_id_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      document.cookie = 'auth0_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    }
+    router.push('/login')
+  }
 
   return (
     <header className="bg-white shadow-sm border-b">
@@ -36,33 +75,28 @@ export function Header() {
             <Link href="/jobs" className="text-gray-700 hover:text-blue-600 text-sm font-medium">
               求人一覧
             </Link>
-            <Link 
-              href="/friends" 
-              className="text-gray-700 hover:text-blue-600 text-sm font-medium"
-            >
+            <Link href="/friends" className="text-gray-700 hover:text-blue-600 text-sm font-medium">
               友達リスト
             </Link>
-            <Link 
-              href="/applications" 
-              className="text-gray-700 hover:text-blue-600 text-sm font-medium"
-            >
-              応募状況
+            <Link href="/applications" className="text-gray-700 hover:text-blue-600 text-sm font-medium">
+              応募履歴
             </Link>
-            <Link 
-              href="/notifications" 
-              className="relative text-gray-700 hover:text-blue-600 text-sm font-medium flex items-center gap-2"
-            >
-              <Bell size={20} />
-              通知
-              {unreadCount > 0 && (
-                <Badge 
-                  variant="default" 
-                  className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1.5 py-0.5 min-w-[20px] h-5 flex items-center justify-center"
+            {user && (
+              <div className="flex items-center gap-4">
+                <NotificationDropdown />
+                <span className="text-sm text-gray-600">
+                  {user.user_metadata?.display_name || user.email}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-sm"
                 >
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Badge>
-              )}
-            </Link>
+                  ログアウト
+                </Button>
+              </div>
+            )}
           </nav>
         </div>
       </div>
