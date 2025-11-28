@@ -44,7 +44,6 @@ export default function FriendsPage() {
 
   useEffect(() => {
     loadFriends()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // 初回のみ実行
 
   // 友達追加モーダルは招待リンクとQRコードを表示するだけ

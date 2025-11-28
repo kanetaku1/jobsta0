@@ -34,11 +34,6 @@ export function Header() {
   const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
 
-  // /employer配下ではHeaderを表示しない
-  if (pathname?.startsWith('/employer')) {
-    return null
-  }
-
   useEffect(() => {
     const loadUser = () => {
       const userData = getUserFromToken()
@@ -60,7 +55,6 @@ export function Header() {
     }, 5000)
 
     return () => clearInterval(checkAuthInterval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // 初回のみ実行
 
   const handleLogout = async () => {
@@ -70,6 +64,11 @@ export function Header() {
       document.cookie = 'auth0_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
     }
     router.push('/login')
+  }
+
+  // /employer配下ではHeaderを表示しない
+  if (pathname?.startsWith('/employer')) {
+    return null
   }
 
   return (

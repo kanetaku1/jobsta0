@@ -42,7 +42,6 @@ export function FriendList({ jobId, selectedFriendIds, onSelectionChange }: Frie
 
   useEffect(() => {
     loadFriends()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // 初回のみ実行
 
   const handleToggleSelection = (friendId: string) => {
