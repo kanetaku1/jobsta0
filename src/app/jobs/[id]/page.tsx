@@ -1,9 +1,7 @@
 import { getJob } from '@/utils/getData'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ShareButton } from './ShareButton'
-import { ApplicationForm } from './ApplicationForm'
-import { JobInterestButton } from '@/components/JobInterestButton'
+import { Button } from '@/components/ui/button'
 
 export default async function JobDetailPage({
     params,
@@ -81,17 +79,13 @@ export default async function JobDetailPage({
                         )}
                     </div>
 
-                    <div className="flex gap-4 items-center pt-6 border-t border-gray-200">
-                        <JobInterestButton jobId={job.id} />
-                        <ShareButton jobId={job.id} jobTitle={job.title || '求人'} />
+                    <div className="pt-6 border-t border-gray-200">
+                        <Link href={`/jobs/${job.id}/apply`}>
+                            <Button className="w-full bg-blue-600 text-white py-6 text-lg font-semibold">
+                                友達と応募する
+                            </Button>
+                        </Link>
                     </div>
-                </div>
-
-                <div className="bg-white rounded-lg shadow-lg p-8">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-6">
-                        友達と一緒に応募する
-                    </h2>
-                    <ApplicationForm jobId={job.id} jobTitle={job.title || '求人'} />
                 </div>
             </div>
         </div>
