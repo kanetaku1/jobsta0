@@ -4,44 +4,6 @@
 
 ## 🚀 開発環境セットアップ
 
-### 方法1: Dockerを使った簡単セットアップ（推奨）
-
-#### 1. Dockerのインストール
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) をダウンロードしてインストール
-- インストール後、Docker Desktopを起動
-
-#### 2. リポジトリをクローン
-
-```bash
-git clone https://github.com/kanetaku1/jobsta0.git
-cd jobsta0
-```
-
-#### 3. 環境変数を設定
-
-`.env.local.example`をコピーして`.env.local`を作成し、Supabaseなどのキーを設定してください。
-
-```bash
-cp .env.local.example .env.local
-```
-
-#### 4. Dockerで開発環境を起動
-
-```bash
-docker-compose up --build
-```
-
-これだけで開発環境が起動します！ブラウザで http://localhost:3000 にアクセスしてください。
-
-#### 5. 開発環境の停止
-
-```bash
-docker-compose down
-```
-
-### 方法2: 従来のセットアップ
-
 #### 1. リポジトリをクローン
 
 ```bash
@@ -51,10 +13,17 @@ cd jobsta0
 
 #### 2. 環境変数を設定
 
-`.env.local.example`をコピーして`.env.local`を作成し、Supabaseなどのキーを設定してください。
+`.env.local`ファイルを作成し、SupabaseとPrismaの設定を行ってください。
+
+詳細は [`docs/AUTH_SETUP_GUIDE.md`](./docs/AUTH_SETUP_GUIDE.md) を参照してください。
 
 ```bash
-cp .env.local.example .env.local
+# 必要な環境変数
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+DATABASE_URL=postgresql://postgres:password@host:5432/postgres
+DIRECT_URL=postgresql://postgres:password@host:5432/postgres
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 #### 3. パッケージをインストール
@@ -63,18 +32,21 @@ cp .env.local.example .env.local
 npm install
 ```
 
-#### 4. ローカルサーバー起動
+#### 4. データベースのセットアップ
+
+```bash
+# Prisma Clientの生成
+npm run db:generate
+
+# データベースマイグレーション（初回のみ）
+npm run db:migrate
+```
+
+#### 5. ローカルサーバー起動
 
 ```bash
 npm run dev
 ```
-
-## 🐳 Dockerを使うメリット
-
-- **環境の統一**: 全員が同じ開発環境を使える
-- **簡単セットアップ**: 複雑な環境構築が不要
-- **依存関係の管理**: Node.jsのバージョンなどを自動で管理
-- **データベース**: PostgreSQLも自動で起動
 
 ## 🧪 テスト環境の使い分け
 
@@ -108,10 +80,10 @@ npm run dev
 
 ## 🛠 使用技術
 
-- **Frontend**: Next.js 14, TypeScript
-- **Styling**: TailwindCSS
-- **Database**: PostgreSQL (Prisma)
-- **Authentication**: Supabase
+- **Frontend**: Next.js 15.4.5, React 19.1.0, TypeScript v5
+- **Styling**: TailwindCSS v3.4.17, Shadcn/ui
+- **Database**: PostgreSQL (Supabase) + Prisma v6.13.0
+- **Authentication**: Supabase Auth (LINE Login対応)
 - **Deployment**: Vercel
 
 ## 👥 チーム開発ルール
@@ -143,50 +115,28 @@ npm run dev
 
 ## 🔧 よくあるトラブルと解決方法
 
-### Docker関連
-
-```bash
-# コンテナが起動しない場合
-docker-compose down
-docker-compose up --build
-
-# ログを確認
-docker-compose logs app
-
-# コンテナ内でコマンド実行
-docker-compose exec app npm run build
-
-# シンプル版で試す
-docker-compose -f docker-compose.simple.yml up --build
-```
-
-### Dockerが起動しない場合
-
-1. **Docker Desktopの再起動**
-   - Docker Desktopを完全に終了して再起動
-   - 起動完了まで数分待つ
-
-2. **従来の環境構築を使用**
-
-   ```bash
-   npm install
-   npm run dev
-   ```
-
-3. **WSL2の確認**
-   - Windows 10/11でWSL2が有効になっているか確認
-   - Docker Desktopの設定で「Use WSL 2 based engine」が有効
-
 ### データベース関連
 
 ```bash
-# データベースのリセット
-docker-compose down -v
-docker-compose up --build
+# Prisma Clientの生成
+npm run db:generate
 
-# Prismaマイグレーション
-docker-compose exec app npx prisma migrate dev
+# マイグレーション（開発環境）
+npm run db:migrate
+
+# マイグレーション（本番環境）
+npm run db:migrate:deploy
+
+# Prisma Studio（データベースGUI）
+npm run db:studio
+
+# スキーマを直接プッシュ（開発用）
+npm run db:push
 ```
+
+### Supabase設定
+
+詳細な設定手順は [`docs/AUTH_SETUP_GUIDE.md`](./docs/AUTH_SETUP_GUIDE.md) を参照してください。
 
 ## 📚 参考資料
 
