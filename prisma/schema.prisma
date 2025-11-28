@@ -1,0 +1,158 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // オプション: Supabaseの接続プールを使用する場合
+}
+
+// ==================== ユーザー ====================
+// Supabase AuthのユーザーIDと連携
+model User {
+  id            String   @id @default(uuid())
+  supabaseId    String   @unique // Supabase AuthのユーザーID
+  name          String?
+  email         String?  @unique
+  lineId        String?  @unique // LINE ID（オプション）
+  displayName   String?  // 表示名
+  avatarUrl     String?  // アバターURL
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // リレーション
+  ownedGroups   Group[]         @relation("GroupOwner")
+  groupMembers  GroupMember[]
+  applications  Application[]
+  notifications Notification[]
+
+  @@index([supabaseId])
+  @@index([lineId])
+  @@map("users")
+}
+
+// ==================== グループ ====================
+model Group {
+  id          String   @id @default(uuid())
+  ownerId     String
+  ownerName   String   // グループ作成者の名前
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // リレーション
+  owner       User         @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  applications Application[]
+
+  @@index([ownerId])
+  @@map("groups")
+}
+
+// ==================== グループメンバー ====================
+model GroupMember {
+  id         String            @id @default(uuid())
+  groupId    String
+  userId     String?           // ユーザーID（ログイン済みの場合）
+  name       String            // メンバー名
+  lineId     String?           // LINE ID
+  inviteLink String?           // 招待リンク
+  status     GroupMemberStatus @default(PENDING)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  // リレーション
+  group      Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([groupId])
+  @@index([userId])
+  @@map("group_members")
+}
+
+enum GroupMemberStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ==================== 求人 ====================
+model Job {
+  id            String   @id @default(uuid())
+  title         String?
+  description   String?
+  location      String?
+  wageAmount    Int?     // 時給（円）
+  transportFee  Int?     // 交通費（円）
+  jobDate       DateTime? // シフト日時
+  companyId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // リレーション
+  applications  Application[]
+
+  @@index([jobDate])
+  @@map("jobs")
+}
+
+// ==================== 応募 ====================
+model Application {
+  id            String              @id @default(uuid())
+  jobId         String
+  groupId       String?              // グループID（グループ応募の場合）
+  applicantId   String              // 応募者（あなた）
+  status        ApplicationStatus   @default(PENDING)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  // リレーション
+  job           Job                 @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  group         Group?              @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  applicant     User                @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([groupId])
+  @@index([applicantId])
+  @@index([status])
+  @@map("applications")
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+// ==================== 通知 ====================
+model Notification {
+  id                String             @id @default(uuid())
+  userId            String             // 通知を受けるユーザー
+  type              NotificationType
+  applicationId     String?            // 応募ID
+  jobId             String?             // 求人ID
+  jobTitle          String?            // 求人タイトル
+  fromUserName      String?            // 通知を送ったユーザー名
+  message           String
+  read              Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  // リレーション
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  APPLICATION_INVITATION
+  APPLICATION_APPROVED
+  APPLICATION_REJECTED
+}
