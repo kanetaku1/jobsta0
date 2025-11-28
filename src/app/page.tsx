@@ -46,7 +46,6 @@ export default function HomePage() {
         }
         
         checkAuth()
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [router]) // routerのみを依存配列に含める
 
     // 認証チェック中はローディング表示

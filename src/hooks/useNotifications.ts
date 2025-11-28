@@ -16,7 +16,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const {
     limit,
     autoRefresh = true,
-    refreshInterval = 30000, // 2秒から30秒に変更
+    refreshInterval = 30000,
   } = options
 
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -65,7 +65,6 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       const interval = setInterval(() => loadNotifications(false), refreshInterval)
       return () => clearInterval(interval)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [limit, autoRefresh, refreshInterval])
 
   const handleMarkAsRead = useCallback(async (notificationId: string) => {

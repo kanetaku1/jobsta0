@@ -30,6 +30,11 @@ export function JobCard({ job }: JobCardProps) {
         <h2 className="text-xl font-semibold text-gray-800 mb-3 line-clamp-2">
           {job.title ?? 'タイトルなし'}
         </h2>
+        {job.company_name && (
+          <p className="text-gray-500 text-sm mb-2">
+            {job.company_name}
+          </p>
+        )}
         <div className="space-y-2 mb-4">
           {job.location && (
             <p className="text-gray-600 text-sm flex items-center">
@@ -47,8 +52,18 @@ export function JobCard({ job }: JobCardProps) {
               シフト: {new Date(job.job_date).toLocaleDateString('ja-JP')}
             </p>
           )}
+          {job.recruitment_count && (
+            <p className="text-gray-600 text-sm">
+              募集人数: {job.recruitment_count}名
+            </p>
+          )}
         </div>
-        {job.description && (
+        {job.job_content && (
+          <p className="text-gray-700 text-sm line-clamp-3">
+            {job.job_content}
+          </p>
+        )}
+        {!job.job_content && job.description && (
           <p className="text-gray-700 text-sm line-clamp-3">
             {job.description}
           </p>
