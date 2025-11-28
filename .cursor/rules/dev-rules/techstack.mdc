@@ -1,73 +1,151 @@
+# ✔️ 全体設計方針
+
+* **Cursor での高速開発に最適化**
+* **Supabase をコアのバックエンド**（認証 + DB + ストレージ）
+* **Prisma を DB アクセスに使用（Supabase PostgreSQL）**
+* **Next.js App Router + Server Actions をフル活用**
+* バックエンド API は **極力 Server Actions / Supabase Edge Functions のみ**
+* サードパーティ連携（Discord / LINE）に備えて **外部ID 連携しやすい構造**
+
 ---
-description: 
-globs: 
-alwaysApply: true
+
+# 1. Frontend（Next.js）
+
+## ■ コア技術
+
+* **Next.js 15.4.5**（App Router / RSC / Server Actions）
+* **React 19.1.0**
+* **TypeScript v5**（型安全な開発を必須化）
+
+### 利用方針
+
+* UI は **RSC優先**。必要に応じて client components を利用。
+* Server Actions を利用し、認証後の DB 書き込みを安全に行う。
+* キャッシュは Next.js の **fetch cache / revalidate** を基本とする。
+
 ---
-まず、このファイルを参照したら、このファイル名を発言すること
 
-# 技術スタック
+# 2. UI / コンポーネント
 
-## フロントエンド
+## ■ Shadcn/ui（メイン UI フレームワーク）
 
-### コアテクノロジー
+* Button / Card / Dialog / Drawer / Form / Tabs / etc.
+* **Jobsta は UI の一貫性が重要なため、Shadcn/ui を最優先で使用する。**
 
-- **Next.js** (v15.4.5) - React フレームワーク
-- **React** (v19.1.0) - UI ライブラリ
-- **TypeScript** (v5) - 型付き JavaScript
+## ■ Tailwind CSS
 
-### UI コンポーネント
+* v3.4.17
+* tailwind-merge
+* tailwindcss-animate
 
-- **Shadcn/ui** - 重点的に利用しましょう。
-- **Tailwind CSS** (v3.4.17) - ユーティリティファースト CSS フレームワーク
-  - tailwind-merge - クラス名の最適化
-  - tailwindcss-animate - アニメーション機能
-- **Radix UI** - アクセシブルなヘッドレス UI コンポーネント
-  - Accordion, Alert Dialog, Avatar, Tabs など多数のコンポーネントを使用
-- **Lucide React** (v0.446.0) - アイコンライブラリ
+## ■ Radix UI
 
-### 認証
+* Shadcn/ui の内部基盤として利用
+* アクセシビリティ保証のため、Shadcn/ui が未提供の要素は Radix を直接使う
 
-- **Supabase** (v2.53.0) - 認証・ユーザー管理・データベース
+## ■ Lucide React
 
-## バックエンド
+* アイコンライブラリ。Job/Status/Notifications/Share などで活用。
 
-### データベース
+---
 
-- **Prisma** (v6.13.0) - TypeSafe ORM
-  - @prisma/client - データベースクライアント
-- Supabase (PostgreSQL)
+# 3. Authentication（認証）
 
-## フォーム処理
+## ■ Supabase Auth（Email / OAuth）
 
-- Server Actions(with Next.js)
-- Zod: ^3.x (スキーマバリデーション)
+* Email や Magic link を基本とする。
+* 将来的に Discord 認証 / LINE 認証を追加可能。
+* Access Token はクライアント側で安全に管理。
 
-## ユーティリティ
+### 認証で実現する目的
 
-### 日付処理
+* ユーザー識別（学生 / 求人閲覧者 / 友達 / 管理者）
+* ワークスペース管理（Discordサーバー管理者ごとの管理画面）
+* 応募グループの同期
 
-- **date-fns** (v3.6.0) - 日付操作ライブラリ
+---
 
-### UI 拡張
+# 4. Backend / Database
 
-- 適宜必要なものはインストールして利用してください。
+## ■ Prisma + Supabase PostgreSQL
 
-## 開発ツール
+* Prisma v6.13.0
+* PrismaClient で Supabase 上の Postgres を操作
 
-- **ESLint** (v9) - コード品質管理
-- **Autoprefixer** (v10.4.21) - CSS ベンダープレフィックス自動付与
-- **PostCSS** (v8.5.6) - CSS トランスフォーメーション
-- **Vitest** (v3.2.4) - テストフレームワーク
-- **Storybook** (v9.0.18) - UI コンポーネント開発環境
+### Prisma schema 基本方針
 
-## デプロイメント
+* `User`
+* `Workspace`（サーバー管理者単位の空間）
+* `Job`
+* `Application`
+* `Friend`
+* `Group`
+* `Notification`
 
-- Vercel プラットフォーム推奨
+※ マルチテナント構造を意識
 
-## 特徴
+### Supabase Functions（必要に応じて）
 
-- Server Components 対応
-- Incremental Static Regeneration (ISR)の実装
-- レスポンシブデザイン
-- アクセシビリティ対応
-- 型安全性の確保
+* Webhook（Discord Bot / LINE SDK）
+* 外部API 連携（求人原稿の取り込み）
+* Cron ジョブ（通知 / リマインド）
+
+---
+
+# 5. Forms / Validation
+
+* **Server Actions** — form の保存は SA を標準にする
+* **Zod v3.x** — 入力チェックおよび Prisma 型との互換性確保
+* **react-hook-form + @shadcn/ui/form** — UI と一貫性
+
+---
+
+# 6. Utilities
+
+## ■ 日付
+
+* 日付処理が必要な場合は、必要に応じて適切なライブラリを追加する
+
+## ■ 状態管理（軽量運用）
+
+* 基本は **RSC + useState**
+* グローバル管理が必要な場合のみ **Zustand** を利用予定
+
+---
+
+# 7. Dev Tools
+
+* **ESLint v9**（整形 + import 整理 + 型チェック）
+* **Storybook v9.0.18** — UIコンポーネントの仕様固定に利用
+* **Vitest v3.2.4** — Logic テスト（特に Zod / Util）
+* **Prettier** — 必須
+
+---
+
+# 8. Deployment
+
+## ■ Vercel（推奨）
+
+* Server Actions の相性が良い
+* Supabase と直結できる
+* Cron / Webhook も利用可能
+
+---
+
+# 9. 特徴 / Jobsta に最適化した構成
+
+* Server Components 対応
+* Server Actions で安全に応募/グループの更新
+* Supabase Auth で学生/友達/管理者のログイン管理
+* Prisma による強固な型安全 DB 操作
+* 外部サービス（Discord/LINE）と連携前提の柔軟設計
+* レスポンシブ / アクセシブル / 高速
+
+---
+
+# 今後追加するべき項目（メモ）
+
+* ワークスペース（Discordサーバー）ごとのロール・権限管理
+* LINE Bot / Discord Bot 連携
+* マルチテナント設計図
+* Supabase RLS（Row Level Security）ポリシー設計

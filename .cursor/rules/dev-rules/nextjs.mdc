@@ -1,284 +1,133 @@
+## 🎯 目的
+
+* 最小実装で高速に価値検証できる Next.js アプリの規約化
+* UI/UX のばらつきを防ぎ、Discord・LINE どちらでも運用できる求⼈体験を実現
+* 他の Discord サーバー管理者にも使ってもらえる “転用可能なミニアプリ” の基盤設計
 
 ---
-description: Apply this rule to the entire repository
-globs: 
-alwaysApply: true
+
+## 📁 ディレクトリ構成（App Router）
+
+```
+app/
+  ├── (public)/        # 求人一覧・応募導線の公開ページ
+  ├── (user)/          # ユーザー登録・友達グループ作成
+  ├── apply/           # 応募フロー
+  ├── api/             # API Routes
+  └── components/      # UIコンポーネント
+lib/
+  ├── supabase/        # 認証・DB操作
+  ├── discord/         # Discord連携ロジック
+  ├── line/            # LINE公式連携ロジック
+  └── utils/           # 汎用関数
+```
+
 ---
-まず、このファイルを参照したら、このファイル名を発言すること
 
-# Next.js ベストプラクティス実装ルール
+## 🧩 UI コンポーネント方針
 
-## 1. ルーティングとファイル構造
+### ● Shadcn UI を標準使用
 
-### ディレクトリ構造例
+* ボタン、ダイアログ、フォーム、ステップ UI を統一
+* コンポーネントは `/components/ui/` に配置
 
-src/
-├── app/                    # ルーティングとページコンポーネント
-│   ├── (marketing)/       # ランディングページ、プライシング、お問い合わせなど
-│   │   ├── about/
-│   │   ├── pricing/
-│   │   └── contact/
-│   ├── (dashboard)/       # ログイン後のメイン機能
-│   │   ├── projects/
-│   │   ├── settings/
-│   │   └── profile/
-│   └── api/               # APIルート
-│
-├── components/            # Reactコンポーネント
-│   ├── common/           # 共通コンポーネント
-│   │   ├── buttons/
-│   │   ├── forms/
-│   │   ├── icons/
-│   │   └── typography/
-│   ├── features/         # 機能別コンポーネント
-│   │   ├── dashboard/    # ダッシュボード関連
-│   │   └── marketing/    # マーケティングページ関連
-│   └── layouts/          # レイアウトコンポーネント
-│       ├── marketing/
-│       └── dashboard/
-│
-├── hooks/                # カスタムフック
-│   ├── auth/
-│   ├── form/
-│   └── query/
-│
-├── lib/                  # ユーティリティ関数
-│   ├── constants/        # 定数
-│   │   ├── config/
-│   │   └── messages/
-│   ├── types/           # 型定義
-│   └── utils/           # ヘルパー関数
-│       ├── date/
-│       ├── format/
-│       └── validation/
-│
-├── dal/            # Data Access Layer
-│   │── auth/
-│   │── projects/
-│
-│
-└── public/             # 静的アセット
-    ├── images/
-    │   ├── marketing/
-    │   └── dashboard/
-    ├── fonts/
-    └── icons/
+### ● 再利用される UI は必ず分離
 
-### 命名規則
+例：
 
-- ページコンポーネント: `page.tsx`
-- レイアウトコンポーネント: `layout.tsx`
-- ローディング状態: `loading.tsx`
-- エラーハンドリング: `error.tsx`
-- 404 ページ: `not-found.tsx`
+* `<JobCard />`
+* `<ApplyStep />`
+* `<FriendInviteWidget />`
+* `<ShareToGroupButton />`
 
-## 2. コンポーネント設計
+---
 
-### Server Components
+## 🪜 応募フロー設計
 
-- **デフォルトで Server Components を使用**
-- **データフェッチングを含むコンポーネントは Server Components で実装**
-- SEO 対応が必要なコンポーネントは Server Components で実装
+### 現状の Discord フロー（改善前）
 
-### Client Components
-
-以下の場合のみ Client Components を使用:
-
-- ブラウザ API を使用する場合
-- イベントリスナーが必要な場合
-- React hooks を使用する場合
-- クライアントサイドの状態管理が必要な場合
-
-### 'use client' ディレクティブ
-
-```typescript
-"use client";
-// クライアントコンポーネントの先頭に記述
+```
+1. サーバー参加
+2. 友達情報を伝えてグループ作成
+3. 求人スレの投稿を見て共有
+4. 外部リンクで個人応募
+5. 応募したことをスクショで共有
 ```
 
-## 3. API実装
+➡ 手間が多く、アプリより複雑になっている
 
-- データフェッチ用のAPIはなるべく作成しないでください。サーバーコンポーネントでのデータフェッチを強く推奨します。
-- `app/api`ディレクトリ内に API エンドポイントを作成
-- HTTP メソッドごとに適切なハンドラーを実装:
-- GET の API はなるべく作らないでください。データフェッチはサーバーコンポーネントでお願いします。
-- API の仕様は POST/PATCH/PUT/DELETE のみに絞ってください。
+---
 
-```typescript
-// app/api/articles/route.ts
-import { NextResponse } from "next/server";
+## 🔁 改良後：UI とフローの再構成
 
-// POST: 新規記事の作成
-export async function POST(request: Request) {
-  try {
-    const data = await request.json();
-    const article = await prisma.article.create({
-      data,
-    });
-    return NextResponse.json(article, { status: 201 });
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
-  }
-}
+### ① Web アプリの中心化
+
+Discord / LINE から **1リンクでミニアプリへ遷移**
+
+```
+LINE → Web
+Discord → Web
 ```
 
-### クライアントサイドでのユーザーデータ操作
+* 友達招待
+* グループ作成
+* 求人共有
+* 応募
+  がすべて Web 内で閉じる
 
-- `fetch` を使用して API を呼び出し
-- エラーハンドリングとローディング状態の管理:
-- ServerActionsでも可
+### ② 3ステップ応募 UI
 
-```typescript
-// components/articles/create-article.tsx
-"use client";
-
-export async function createArticle(data: ArticleData) {
-  try {
-    const response = await fetch("/api/articles", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!response.ok) {
-      throw new Error("API request failed");
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error creating article:", error);
-    throw error;
-  }
-}
+```
+STEP1：求人を見る
+STEP2：友達と一緒に応募（グループ選択 / 作成）
+STEP3：応募完了 → 自動でグループに共有
 ```
 
-### キャッシュと再検証
+### ③ グループ共有は Discord / LINE に自動ポスト
 
-- デフォルトでキャッシュを活用
-- 適切な再検証戦略を選択:
+* Discord → Webhook
+* LINE → Messaging API
 
-```typescript
-// ISRの場合
-fetch(url, { next: { revalidate: 3600 } }); // 1時間ごとに再検証
+---
 
-// キャッシュを無効化する場合
-fetch(url, { cache: "no-store" });
-```
+## 🔐 認証設計
 
-### エラーハンドリング
+### シンプルにするため **電話番号 or LINE Login を推奨**
 
-- API レスポンスには適切なステータスコードとエラーメッセージを含める
-- クライアントサイドでは適切なエラーハンドリングとユーザーフィードバックを実装
-- try-catch ブロックを使用して例外を適切に処理
+* 学生が使う → LINE Login が最適
+* Discord サーバー管理者用 → Discord OAuth を併用
 
-### セキュリティ
+---
 
-- API ルートでは適切な認証・認可チェックを実装
-- 入力値のバリデーションを実施、特にサーバーサイドでのバリデーション
-- レートリミットの実装を検討
+## 🌐 求人データ管理
 
-## 4. パフォーマンス最適化
+### Supabase を前提とする
 
-### 画像最適化
+* `jobs` テーブル（求人）
+* `groups` テーブル（友達グループ）
+* `applications` テーブル（応募）
+* `server_admins`（外部管理者）
 
-- `next/image`コンポーネントを使用
+---
 
-```typescript
-import Image from "next/image";
+## 🔌 Discord / LINE 連携
 
-<Image
-  src="/path/to/image.jpg"
-  alt="説明"
-  width={800}
-  height={600}
-  priority={true} // 重要な画像の場合
-/>;
-```
+### Discord サーバー管理者向け
 
-### スクリプト最適化
+* 自分のサーバー専用の「求人投稿ページ」を持てる
+* 求人作成 → Webhook で自サーバーの求人チャンネルに自動投稿
 
-- `next/script`を使用して外部スクリプトを最適化
+### LINE 公式アカウント運用者向け
 
-```typescript
-import Script from "next/script";
+* 求人追加 → LIFF 経由でユーザーへ配信
+* グループ応募結果のメッセージ送信
 
-<Script src="https://example.com/script.js" strategy="lazyOnload" />;
-```
+---
 
-## 5. エラーハンドリング
+## 🧪 ABテストと検証方針
 
-### エラーバウンダリ
+* UI フローは「1画面1目的」
+* 毎週 1 個機能を改善（.cursor/rules に準拠）
+* LINE / Discord / 単発Web の 3ch で流入比較
 
-- `error.tsx`ファイルでエラーをキャッチ
-- ユーザーフレンドリーなエラーメッセージを表示
-
-### ローディング状態
-
-- `loading.tsx`でローディング状態を管理
-- Suspense を使用して細かい粒度でローディングを制御
-
-## 6. 型安全性
-
-### TypeScript
-
-- 厳格な型チェックを有効化
-
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "forceConsistentCasingInFileNames": true
-  }
-}
-```
-
-### API ルート
-
-- リクエスト/レスポンスの型を定義
-
-```typescript
-type ResponseData = {
-  message: string;
-};
-```
-
-## 7. セキュリティ
-
-### 環境変数
-
-- 機密情報は`.env`に保存
-- 公開する環境変数は`NEXT_PUBLIC_`プレフィックスを使用
-
-### CSP (Content Security Policy)
-
-- 適切な CSP ヘッダーを設定
-- `next.config.js`でセキュリティヘッダーを構成
-
-## 8. デプロイメント
-
-### ビルド最適化
-
-- 本番環境では常に本番ビルドを使用
-- 適切なキャッシュ戦略を実装
-
-### 環境変数
-
-- 環境ごとに適切な環境変数を設定
-- 本番環境の環境変数は安全に管理
-
-## 10. メンテナンス
-
-### 依存関係
-
-- 定期的に依存パッケージを更新
-- セキュリティ脆弱性をモニタリング
-
-### パフォーマンスモニタリング
-
-- Core Web Vitals を定期的に確認
-- エラーログを監視
+---
