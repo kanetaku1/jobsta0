@@ -1,42 +1,26 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Bell, CheckCircle, XCircle, Clock, ExternalLink } from 'lucide-react'
 import type { Notification } from '@/types/application'
 import { 
-    getNotifications, 
-    markNotificationAsRead,
     updateApplicationGroupStatus,
-    getCurrentUserId,
     getApplicationGroups,
     createNotification,
 } from '@/lib/localStorage'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { NotificationIcon } from '@/components/NotificationIcon'
+import { useNotifications } from '@/hooks/useNotifications'
+import { getNotificationRoute } from '@/utils/notifications'
 import Link from 'next/link'
 
 export function NotificationsList() {
-    const [notifications, setNotifications] = useState<Notification[]>([])
-    const userId = getCurrentUserId()
-
-    useEffect(() => {
-        const loadNotifications = () => {
-            const notifs = getNotifications(userId)
-            setNotifications(notifs)
-        }
-
-        loadNotifications()
-        // 定期的に更新
-        const interval = setInterval(loadNotifications, 2000)
-        return () => clearInterval(interval)
-    }, [userId])
-
-    const handleMarkAsRead = (notificationId: string) => {
-        markNotificationAsRead(notificationId)
-        setNotifications(prev => 
-            prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-        )
-    }
+    const router = useRouter()
+    const { notifications, unreadCount, handleMarkAsRead, loadNotifications } = useNotifications({
+        autoRefresh: true,
+        refreshInterval: 2000,
+    })
 
     const handleApprove = (notification: Notification) => {
         updateApplicationGroupStatus(notification.applicationGroupId, 'approved')
@@ -59,40 +43,17 @@ export function NotificationsList() {
           })
         }
         
-        // 通知を更新（承認済み）
-        setNotifications(prev => prev.map(n => 
-            n.id === notification.id 
-                ? { ...n, read: true, type: 'application_approved' as const }
-                : n
-        ))
+        // 通知を再読み込み
+        loadNotifications()
     }
 
     const handleReject = (notification: Notification) => {
         updateApplicationGroupStatus(notification.applicationGroupId, 'rejected')
         handleMarkAsRead(notification.id)
         
-        // 通知を更新（拒否済み）
-        setNotifications(prev => prev.map(n => 
-            n.id === notification.id 
-                ? { ...n, read: true, type: 'application_rejected' as const }
-                : n
-        ))
+        // 通知を再読み込み
+        loadNotifications()
     }
-
-    const getNotificationIcon = (type: Notification['type']) => {
-        switch (type) {
-            case 'application_invitation':
-                return <Bell size={20} className="text-blue-500" />
-            case 'application_approved':
-                return <CheckCircle size={20} className="text-green-500" />
-            case 'application_rejected':
-                return <XCircle size={20} className="text-red-500" />
-            default:
-                return <Bell size={20} />
-        }
-    }
-
-    const unreadCount = notifications.filter(n => !n.read).length
 
     if (notifications.length === 0) {
         return (
@@ -133,7 +94,7 @@ export function NotificationsList() {
                     >
                         <div className="flex items-start gap-3">
                             <div className="flex-shrink-0 mt-1">
-                                {getNotificationIcon(notification.type)}
+                                <NotificationIcon type={notification.type} size={20} />
                             </div>
 
                             <div className="flex-1 min-w-0">
@@ -176,6 +137,46 @@ export function NotificationsList() {
                                                 拒否
                                             </Button>
                                         </>
+                                    )}
+
+                                    {notification.type === 'application_invitation' && notification.applicationGroupId && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-blue-600 hover:text-blue-800"
+                                            onClick={() => {
+                                                if (!notification.read) {
+                                                    handleMarkAsRead(notification.id)
+                                                }
+                                                const route = getNotificationRoute(notification)
+                                                if (route) {
+                                                    router.push(route)
+                                                }
+                                            }}
+                                        >
+                                            詳細を見る
+                                            <ExternalLink size={14} className="ml-1" />
+                                        </Button>
+                                    )}
+
+                                    {(notification.type === 'application_approved' || notification.type === 'application_rejected') && notification.applicationGroupId && (
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            className="text-blue-600 hover:text-blue-800"
+                                            onClick={() => {
+                                                if (!notification.read) {
+                                                    handleMarkAsRead(notification.id)
+                                                }
+                                                const route = getNotificationRoute(notification)
+                                                if (route) {
+                                                    router.push(route)
+                                                }
+                                            }}
+                                        >
+                                            応募詳細を見る
+                                            <ExternalLink size={14} className="ml-1" />
+                                        </Button>
                                     )}
 
                                     {notification.jobId && (
