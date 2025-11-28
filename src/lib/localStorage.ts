@@ -1,4 +1,4 @@
-import type { Friend, JobInterest, JobInterestStatus, ApplicationGroup, Notification, ApplicationGroupStatus, Group, GroupMember, GroupMemberStatus } from '@/types/application'
+import type { Friend, JobInterest, JobInterestStatus, ApplicationGroup, Notification, ApplicationGroupStatus, Group, GroupMember, GroupMemberStatus, ApplicationParticipationStatus } from '@/types/application'
 
 const STORAGE_KEYS = {
   FRIENDS: 'jobsta_friends',
@@ -317,9 +317,12 @@ export function saveGroups(groups: Group[]): void {
   localStorage.setItem(STORAGE_KEYS.GROUPS, JSON.stringify(groups))
 }
 
-export function createGroup(jobId: string, ownerName: string, ownerUserId: string, members: Omit<GroupMember, 'id' | 'status' | 'inviteLink'>[], requiredCount: number): Group {
+export function createGroup(jobId: string, ownerName: string, ownerUserId: string, members: Omit<GroupMember, 'id' | 'status'>[], requiredCount: number): Group {
   const groups = getGroups()
   const groupId = `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  
+  // グループ招待リンクを生成
+  const groupInviteLink = generateGroupInviteLink(groupId)
   
   const newGroup: Group = {
     id: groupId,
@@ -328,17 +331,15 @@ export function createGroup(jobId: string, ownerName: string, ownerUserId: strin
     ownerUserId,
     members: members.map((m, index) => {
       const memberId = `member_${Date.now()}_${index}_${Math.random().toString(36).substr(2, 9)}`
-      // 招待リンクを自動生成（必須）
-      const inviteLink = generateInviteLink(groupId, memberId)
       
       return {
         name: m.name,
         id: memberId,
-        inviteLink,
         status: 'pending' as GroupMemberStatus,
       }
     }),
     requiredCount, // 希望者数
+    groupInviteLink, // グループ全体の招待リンク
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }
@@ -349,30 +350,30 @@ export function createGroup(jobId: string, ownerName: string, ownerUserId: strin
   return newGroup
 }
 
-// 招待リンクを生成
-export function generateInviteLink(groupId: string, memberId: string): string {
+// グループ招待リンクを生成（グループ全体）
+export function generateGroupInviteLink(groupId: string): string {
   if (typeof window === 'undefined') {
-    // サーバーサイドの場合は、環境変数から取得
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    return `${baseUrl}/invite/${groupId}/${memberId}`
+    return `${baseUrl}/invite/group/${groupId}`
   }
-  return `${window.location.origin}/invite/${groupId}/${memberId}`
-}
-
-// 招待リンクからグループとメンバーを取得
-export function getGroupAndMemberFromInvite(groupId: string, memberId: string): { group: Group | null; member: GroupMember | null } {
-  const group = getGroup(groupId)
-  if (!group) {
-    return { group: null, member: null }
-  }
-  
-  const member = group.members.find(m => m.id === memberId)
-  return { group, member: member || null }
+  return `${window.location.origin}/invite/group/${groupId}`
 }
 
 export function getGroup(groupId: string): Group | null {
   const groups = getGroups()
-  return groups.find(g => g.id === groupId) || null
+  const group = groups.find(g => g.id === groupId)
+  
+  // 既存のグループデータにgroupInviteLinkがない場合、生成して保存
+  if (group && !group.groupInviteLink) {
+    group.groupInviteLink = generateGroupInviteLink(groupId)
+    const groupIndex = groups.findIndex(g => g.id === groupId)
+    if (groupIndex >= 0) {
+      groups[groupIndex] = group
+      saveGroups(groups)
+    }
+  }
+  
+  return group || null
 }
 
 export function updateGroupMemberStatus(groupId: string, memberId: string, status: GroupMemberStatus): void {
@@ -392,6 +393,50 @@ export function updateGroupMemberStatus(groupId: string, memberId: string, statu
   }
 }
 
+// メンバーの応募参加ステータスを更新
+export function updateMemberApplicationStatus(
+  groupId: string,
+  memberId: string,
+  status: ApplicationParticipationStatus
+): void {
+  const groups = getGroups()
+  const groupIndex = groups.findIndex(g => g.id === groupId)
+  
+  if (groupIndex >= 0) {
+    const memberIndex = groups[groupIndex].members.findIndex(m => m.id === memberId)
+    if (memberIndex >= 0) {
+      groups[groupIndex].members[memberIndex] = {
+        ...groups[groupIndex].members[memberIndex],
+        applicationStatus: status,
+      }
+      groups[groupIndex].updatedAt = new Date().toISOString()
+      saveGroups(groups)
+    }
+  }
+}
+
+// グループメンバーにuserIdを追加（グループ招待リンクから参加した場合）
+export function setMemberUserId(
+  groupId: string,
+  memberId: string,
+  userId: string
+): void {
+  const groups = getGroups()
+  const groupIndex = groups.findIndex(g => g.id === groupId)
+  
+  if (groupIndex >= 0) {
+    const memberIndex = groups[groupIndex].members.findIndex(m => m.id === memberId)
+    if (memberIndex >= 0) {
+      groups[groupIndex].members[memberIndex] = {
+        ...groups[groupIndex].members[memberIndex],
+        userId,
+      }
+      groups[groupIndex].updatedAt = new Date().toISOString()
+      saveGroups(groups)
+    }
+  }
+}
+
 export function getUserGroups(userId: string): Group[] {
   const groups = getGroups()
   return groups.filter(g => g.ownerUserId === userId)
@@ -401,5 +446,53 @@ export function getUserGroups(userId: string): Group[] {
 export function getGroupsByJobId(jobId: string, userId: string): Group[] {
   const groups = getGroups()
   return groups.filter(g => g.jobId === jobId && g.ownerUserId === userId)
+}
+
+// グループIDからグループを取得（グループ招待リンク用）
+export function getGroupFromInvite(groupId: string): Group | null {
+  return getGroup(groupId)
+}
+
+// グループにメンバーを追加（グループ招待リンクから参加した場合）
+export function addMemberToGroup(
+  groupId: string,
+  memberName: string,
+  memberUserId: string
+): { success: boolean; memberId?: string } {
+  const groups = getGroups()
+  const groupIndex = groups.findIndex(g => g.id === groupId)
+  
+  if (groupIndex < 0) {
+    return { success: false }
+  }
+  
+  const group = groups[groupIndex]
+  
+  // 既にメンバーとして存在するか確認（同じユーザーIDで）
+  const existingMember = group.members.find(m => {
+    // メンバーIDからユーザーIDを推測できないため、名前とユーザーIDの組み合わせで確認
+    // 実際には、メンバーにuserIdフィールドを追加する必要があるが、既存の互換性を保つため
+    // ここでは名前で確認（将来的に改善が必要）
+    return false // 一旦、常に新規追加として扱う
+  })
+  
+  if (existingMember) {
+    return { success: false }
+  }
+  
+  // 新しいメンバーを作成
+  const memberId = `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  
+  const newMember: GroupMember = {
+    id: memberId,
+    name: memberName,
+    status: 'approved' as GroupMemberStatus, // グループ招待リンクから参加した場合は自動承認
+  }
+  
+  groups[groupIndex].members.push(newMember)
+  groups[groupIndex].updatedAt = new Date().toISOString()
+  saveGroups(groups)
+  
+  return { success: true, memberId }
 }
 

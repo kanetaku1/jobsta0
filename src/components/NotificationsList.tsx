@@ -23,6 +23,8 @@ export function NotificationsList() {
     })
 
     const handleApprove = (notification: Notification) => {
+        if (!notification.applicationGroupId) return
+        
         updateApplicationGroupStatus(notification.applicationGroupId, 'approved')
         handleMarkAsRead(notification.id)
         
@@ -48,6 +50,8 @@ export function NotificationsList() {
     }
 
     const handleReject = (notification: Notification) => {
+        if (!notification.applicationGroupId) return
+        
         updateApplicationGroupStatus(notification.applicationGroupId, 'rejected')
         handleMarkAsRead(notification.id)
         

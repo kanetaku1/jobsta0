@@ -13,6 +13,8 @@ export function NotificationIcon({ type, size = 20, className }: NotificationIco
   switch (type) {
     case 'application_invitation':
       return <Bell size={size} className={`text-blue-500 ${baseClassName}`} />
+    case 'group_invitation':
+      return <Bell size={size} className={`text-blue-500 ${baseClassName}`} />
     case 'application_approved':
       return <CheckCircle size={size} className={`text-green-500 ${baseClassName}`} />
     case 'application_rejected':
