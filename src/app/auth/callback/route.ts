@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { syncUserFromAuth0 } from '@/lib/auth/sync-user'
-import { isInAppBrowser } from '@/lib/utils/browser-detection'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -8,13 +7,6 @@ export async function GET(request: Request) {
   const error = searchParams.get('error')
   const errorDescription = searchParams.get('error_description')
   let next = searchParams.get('next') ?? '/'
-
-  // インアプリブラウザを検出
-  const userAgent = request.headers.get('user-agent') || ''
-  if (isInAppBrowser(userAgent)) {
-    // インアプリブラウザの場合は専用ページにリダイレクト
-    return NextResponse.redirect(`${origin}/auth/in-app-browser`)
-  }
 
   // エラーパラメータがある場合はエラーページにリダイレクト
   if (error) {

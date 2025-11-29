@@ -26,7 +26,9 @@ export function isInAppBrowser(userAgent?: string): boolean {
     ua.includes('wechat') ||
     ua.includes('micromessenger') ||
     ua.includes('qqbrowser') ||
-    ua.includes('mqqbrowser')
+    ua.includes('mqqbrowser') || 
+    ua.includes('discord') ||
+    ua.includes('slack')
   )
 }
 

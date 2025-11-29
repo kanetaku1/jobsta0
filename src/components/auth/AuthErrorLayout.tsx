@@ -7,7 +7,6 @@ type AuthErrorLayoutProps = {
   title: string
   description: string
   children?: ReactNode
-  showInAppBrowserWarning?: boolean
   errorMessage?: string
 }
 
@@ -16,22 +15,12 @@ export function AuthErrorLayout({
   title,
   description,
   children,
-  showInAppBrowserWarning = false,
   errorMessage,
 }: AuthErrorLayoutProps) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
       <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full text-center">
         <div className="mb-6">
-          {showInAppBrowserWarning && (
-            <div className="mb-4 rounded-md bg-yellow-50 px-4 py-3 text-left">
-              <p className="text-xs text-yellow-800">
-                LINEやSNSアプリの中でこの画面が表示された場合は、
-                右上のメニューから「Safariで開く」または「Chromeで開く」を選んで、
-                再度ログインをお試しください。
-              </p>
-            </div>
-          )}
           <div className="mb-4">{icon}</div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">{title}</h1>
           <p className="text-gray-600 mb-4">{description}</p>
