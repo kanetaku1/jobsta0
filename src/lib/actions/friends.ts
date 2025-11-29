@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma/client'
 import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache/server-cache'
 import type { Friend } from '@/types/application'
+import { handleServerActionError, handleDataFetchError, handleError } from '@/lib/utils/error-handler'
 
 /**
  * 現在のユーザーの友達一覧を取得（キャッシュ付き）
@@ -48,8 +49,11 @@ export async function getFriends(): Promise<Friend[]> {
       }
     )()
   } catch (error) {
-    console.error('Error getting friends:', error)
-    return []
+    return handleDataFetchError(error, {
+      context: 'friend',
+      operation: 'getFriends',
+      defaultErrorMessage: '友達一覧の取得に失敗しました',
+    }, [])
   }
 }
 
@@ -118,8 +122,11 @@ export async function addFriend(friend: Omit<Friend, 'id'>): Promise<Friend | nu
       email: newFriend.friend?.email || newFriend.email || undefined,
     }
   } catch (error) {
-    console.error('Error adding friend:', error)
-    return null
+    return handleDataFetchError(error, {
+      context: 'friend',
+      operation: 'addFriend',
+      defaultErrorMessage: '友達の追加に失敗しました',
+    }, null)
   }
 }
 
@@ -150,7 +157,11 @@ export async function removeFriend(friendId: string): Promise<boolean> {
 
     return result.count > 0
   } catch (error) {
-    console.error('Error removing friend:', error)
+    handleError(error, {
+      context: 'friend',
+      operation: 'removeFriend',
+      defaultErrorMessage: '友達の削除に失敗しました',
+    })
     return false
   }
 }

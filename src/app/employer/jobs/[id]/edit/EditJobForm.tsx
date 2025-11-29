@@ -7,9 +7,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { updateJob, deleteJob } from '@/lib/actions/jobs'
 import { useToast } from '@/components/ui/use-toast'
+import { validateEditJobForm } from '@/lib/utils/job-form-validation'
 
-type Job = {
+import type { Job } from '@/lib/utils/getData'
+
+type EditJobFormJob = {
   id: string
+  title: string | null
+  job_date: string | null
   company_name: string | null
   work_hours: string | null
   wage_amount: number | null
@@ -20,11 +25,28 @@ type Job = {
   application_deadline: string | null
   notes: string | null
   transport_fee: number | null
-  job_date: string | null
 }
 
 type EditJobFormProps = {
   job: Job
+}
+
+function transformJobForEditForm(job: Job): EditJobFormJob {
+  return {
+    id: job.id,
+    title: job.title,
+    job_date: job.job_date,
+    company_name: job.company_name,
+    work_hours: job.work_hours,
+    wage_amount: job.wage_amount,
+    location: job.location,
+    recruitment_count: job.recruitment_count,
+    job_content: job.job_content,
+    requirements: job.requirements,
+    application_deadline: job.application_deadline,
+    notes: job.notes,
+    transport_fee: job.transport_fee,
+  }
 }
 
 export function EditJobForm({ job }: EditJobFormProps) {
@@ -33,20 +55,22 @@ export function EditJobForm({ job }: EditJobFormProps) {
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  const transformedJob = transformJobForEditForm(job)
   const [formData, setFormData] = useState({
-    companyName: job.company_name || '',
-    workHours: job.work_hours || '',
-    hourlyWage: job.wage_amount?.toString() || '',
-    location: job.location || '',
-    recruitmentCount: job.recruitment_count?.toString() || '',
-    jobContent: job.job_content || '',
-    requirements: job.requirements || '',
-    applicationDeadline: job.application_deadline
-      ? new Date(job.application_deadline).toISOString().slice(0, 16)
+    title: transformedJob.title || '',
+    companyName: transformedJob.company_name || '',
+    workHours: transformedJob.work_hours || '',
+    hourlyWage: transformedJob.wage_amount?.toString() || '',
+    location: transformedJob.location || '',
+    recruitmentCount: transformedJob.recruitment_count?.toString() || '',
+    jobContent: transformedJob.job_content || '',
+    requirements: transformedJob.requirements || '',
+    applicationDeadline: transformedJob.application_deadline
+      ? new Date(transformedJob.application_deadline).toISOString().slice(0, 16)
       : '',
-    notes: job.notes || '',
-    transportFee: job.transport_fee?.toString() || '',
-    date: job.job_date ? new Date(job.job_date).toISOString().split('T')[0] : '',
+    notes: transformedJob.notes || '',
+    transportFee: transformedJob.transport_fee?.toString() || '',
+    date: transformedJob.job_date ? new Date(transformedJob.job_date).toISOString().split('T')[0] : '',
   })
 
   const handleInputChange = (field: string, value: string) => {
@@ -59,34 +83,22 @@ export function EditJobForm({ job }: EditJobFormProps) {
 
     try {
       // バリデーション
-      if (!formData.companyName.trim()) {
-        throw new Error('会社名・店舗名を入力してください')
-      }
-      if (!formData.workHours.trim()) {
-        throw new Error('勤務時間を入力してください')
-      }
-      if (!formData.hourlyWage || Number(formData.hourlyWage) <= 0) {
-        throw new Error('時給を正しく入力してください')
-      }
-      if (!formData.location.trim()) {
-        throw new Error('勤務地を入力してください')
-      }
-      if (!formData.recruitmentCount || Number(formData.recruitmentCount) <= 0) {
-        throw new Error('募集人数を正しく入力してください')
-      }
-      if (!formData.jobContent.trim()) {
-        throw new Error('業務内容を入力してください')
-      }
-      if (!formData.date) {
-        throw new Error('日付を入力してください')
+      const validationResult = validateEditJobForm({
+        ...formData,
+        date: formData.date,
+      })
+
+      if (!validationResult.isValid) {
+        throw new Error(validationResult.error)
       }
 
       const result = await updateJob(job.id, {
+        title: formData.title.trim(),
         companyName: formData.companyName.trim(),
         date: formData.date,
+        location: formData.location.trim(),
         workHours: formData.workHours.trim(),
         hourlyWage: Number(formData.hourlyWage),
-        location: formData.location.trim(),
         recruitmentCount: Number(formData.recruitmentCount),
         jobContent: formData.jobContent.trim(),
         requirements: formData.requirements.trim() || undefined,
@@ -102,7 +114,7 @@ export function EditJobForm({ job }: EditJobFormProps) {
         })
         router.push('/employer/jobs')
       } else {
-        throw new Error(result.error || '求人の更新に失敗しました')
+        throw new Error('error' in result ? result.error : '求人の更新に失敗しました')
       }
     } catch (error) {
       toast({
@@ -132,7 +144,7 @@ export function EditJobForm({ job }: EditJobFormProps) {
         })
         router.push('/employer/jobs')
       } else {
-        throw new Error(result.error || '求人の削除に失敗しました')
+        throw new Error('error' in result ? result.error : '求人の削除に失敗しました')
       }
     } catch (error) {
       toast({
@@ -158,6 +170,22 @@ export function EditJobForm({ job }: EditJobFormProps) {
           value={formData.companyName}
           onChange={(e) => handleInputChange('companyName', e.target.value)}
           placeholder="例：株式会社〇〇"
+          required
+          className="mt-2"
+        />
+      </div>
+
+      {/* 求人名 */}
+      <div>
+        <Label htmlFor="title" className="text-base font-semibold">
+          求人名 <span className="text-red-500">*</span>
+        </Label>
+        <Input
+          id="title"
+          type="text"
+          value={formData.title}
+          onChange={(e) => handleInputChange('title', e.target.value)}
+          placeholder="例：バイトスタッフ"
           required
           className="mt-2"
         />

@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma/client'
 import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache/server-cache'
 import { randomUUID } from 'crypto'
+import { handleServerActionError, handleDataFetchError } from '@/lib/utils/error-handler'
+import { transformJobToAppFormat, transformJobToEmployerFormat } from '@/lib/utils/prisma-transformers'
 
 /**
  * 求人作成の入力データ型
@@ -54,15 +56,15 @@ export async function createJob(input: CreateJobInput) {
             wageAmount: input.hourlyWage,
             transportFee: input.transportFee || 0,
             jobDate: jobDate,
-            companyName: input.companyName as any,
-            workHours: input.workHours as any,
-            recruitmentCount: input.recruitmentCount as any,
-            jobContent: input.jobContent as any,
-            requirements: input.requirements || null as any,
-            applicationDeadline: input.applicationDeadline ? new Date(input.applicationDeadline) : null as any,
-            notes: input.notes || null as any,
+            companyName: input.companyName,
+            workHours: input.workHours,
+            recruitmentCount: input.recruitmentCount,
+            jobContent: input.jobContent,
+            requirements: input.requirements || null,
+            applicationDeadline: input.applicationDeadline ? new Date(input.applicationDeadline) : null,
+            notes: input.notes || null,
             employerId: employer.id,
-          } as any,
+          },
         })
 
         return job
@@ -82,11 +84,11 @@ export async function createJob(input: CreateJobInput) {
       })),
     }
   } catch (error) {
-    console.error('Error creating job:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : '求人の作成に失敗しました',
-    }
+    return handleServerActionError(error, {
+      context: 'job',
+      operation: 'createJob',
+      defaultErrorMessage: '求人の作成に失敗しました',
+    })
   }
 }
 
@@ -107,29 +109,11 @@ export async function getJobsAll() {
               name: true,
               displayName: true,
             },
-          } as any,
+          },
         },
       })
 
-      return jobs.map((job) => ({
-        id: job.id,
-        title: job.title,
-        description: job.description,
-        location: job.location,
-        wage_amount: job.wageAmount,
-        transport_fee: job.transportFee,
-        job_date: job.jobDate?.toISOString() || null,
-        company_id: (job as any).companyId,
-        company_name: (job as any).companyName,
-        work_hours: (job as any).workHours,
-        recruitment_count: (job as any).recruitmentCount,
-        job_content: (job as any).jobContent,
-        requirements: (job as any).requirements,
-        application_deadline: (job as any).applicationDeadline?.toISOString() || null,
-        notes: (job as any).notes,
-        employer_id: (job as any).employerId,
-        created_at: job.createdAt.toISOString(),
-      }))
+      return jobs.map((job) => transformJobToAppFormat(job))
     }
 
     return await unstable_cache(
@@ -141,8 +125,11 @@ export async function getJobsAll() {
       }
     )()
   } catch (error) {
-    console.error('Error getting jobs:', error)
-    return []
+    return handleDataFetchError(error, {
+      context: 'job',
+      operation: 'getJobsAll',
+      defaultErrorMessage: '求人の取得に失敗しました',
+    }, [])
   }
 }
 
@@ -163,7 +150,7 @@ export async function getJob(id: string) {
               name: true,
               displayName: true,
             },
-          } as any,
+          },
         },
       })
 
@@ -171,25 +158,7 @@ export async function getJob(id: string) {
         return null
       }
 
-      return {
-        id: job.id,
-        title: job.title,
-        description: job.description,
-        location: job.location,
-        wage_amount: job.wageAmount,
-        transport_fee: job.transportFee,
-        job_date: job.jobDate?.toISOString() || null,
-        company_id: (job as any).companyId,
-        company_name: (job as any).companyName,
-        work_hours: (job as any).workHours,
-        recruitment_count: (job as any).recruitmentCount,
-        job_content: (job as any).jobContent,
-        requirements: (job as any).requirements,
-        application_deadline: (job as any).applicationDeadline?.toISOString() || null,
-        notes: (job as any).notes,
-        employer_id: (job as any).employerId,
-        created_at: job.createdAt.toISOString(),
-      }
+      return transformJobToAppFormat(job)
     }
 
     return await unstable_cache(
@@ -201,8 +170,11 @@ export async function getJob(id: string) {
       }
     )()
   } catch (error) {
-    console.error('Error getting job:', error)
-    return null
+    return handleDataFetchError(error, {
+      context: 'job',
+      operation: 'getJob',
+      defaultErrorMessage: '求人の取得に失敗しました',
+    }, null)
   }
 }
 
@@ -214,27 +186,22 @@ export async function getEmployerJobs() {
     const employer = await requireEmployerAuth()
 
     const jobs = await prisma.job.findMany({
-      where: { employerId: employer.id } as any,
+      where: { employerId: employer.id },
       orderBy: { jobDate: 'asc' },
       include: {
         _count: {
           select: { applications: true },
-        } as any,
-      } as any,
+        },
+      },
     })
 
-    return jobs.map((job) => ({
-      id: job.id,
-      title: job.title,
-      company_name: (job as any).companyName,
-      location: job.location,
-      job_date: job.jobDate?.toISOString() || null,
-      application_count: (job as any)._count.applications,
-      created_at: job.createdAt.toISOString(),
-    }))
+    return jobs.map((job) => transformJobToEmployerFormat(job))
   } catch (error) {
-    console.error('Error getting employer jobs:', error)
-    return []
+    return handleDataFetchError(error, {
+      context: 'job',
+      operation: 'getEmployerJobs',
+      defaultErrorMessage: '求人一覧の取得に失敗しました',
+    }, [])
   }
 }
 
@@ -242,6 +209,7 @@ export async function getEmployerJobs() {
  * 求人更新の入力データ型
  */
 export type UpdateJobInput = {
+  title: string
   companyName: string
   date: string // ISO文字列形式
   workHours: string
@@ -273,7 +241,7 @@ export async function updateJob(jobId: string, input: UpdateJobInput) {
     }
 
     // 自分の求人のみ編集可能
-    if ((job as any).employerId !== employer.id) {
+    if (job.employerId !== employer.id) {
       throw new Error('編集権限がありません')
     }
 
@@ -283,20 +251,20 @@ export async function updateJob(jobId: string, input: UpdateJobInput) {
     const updatedJob = await prisma.job.update({
       where: { id: jobId },
       data: {
-        title: `${input.companyName} - ${jobDate.toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })}`,
+        title: input.title,
         description: input.jobContent,
         location: input.location,
         wageAmount: input.hourlyWage,
         transportFee: input.transportFee || 0,
         jobDate: jobDate,
-        companyName: input.companyName as any,
-        workHours: input.workHours as any,
-        recruitmentCount: input.recruitmentCount as any,
-        jobContent: input.jobContent as any,
-        requirements: input.requirements || null as any,
-        applicationDeadline: input.applicationDeadline ? new Date(input.applicationDeadline) : null as any,
-        notes: input.notes || null as any,
-      } as any,
+        companyName: input.companyName,
+        workHours: input.workHours,
+        recruitmentCount: input.recruitmentCount,
+        jobContent: input.jobContent,
+        requirements: input.requirements || null,
+        applicationDeadline: input.applicationDeadline ? new Date(input.applicationDeadline) : null,
+        notes: input.notes || null,
+      },
     })
 
     // キャッシュを無効化
@@ -312,11 +280,11 @@ export async function updateJob(jobId: string, input: UpdateJobInput) {
       },
     }
   } catch (error) {
-    console.error('Error updating job:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : '求人の更新に失敗しました',
-    }
+    return handleServerActionError(error, {
+      context: 'job',
+      operation: 'updateJob',
+      defaultErrorMessage: '求人の更新に失敗しました',
+    })
   }
 }
 
@@ -338,7 +306,7 @@ export async function deleteJob(jobId: string) {
     }
 
     // 自分の求人のみ削除可能
-    if ((job as any).employerId !== employer.id) {
+    if (job.employerId !== employer.id) {
       throw new Error('削除権限がありません')
     }
 
@@ -355,11 +323,11 @@ export async function deleteJob(jobId: string) {
       success: true,
     }
   } catch (error) {
-    console.error('Error deleting job:', error)
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : '求人の削除に失敗しました',
-    }
+    return handleServerActionError(error, {
+      context: 'job',
+      operation: 'deleteJob',
+      defaultErrorMessage: '求人の削除に失敗しました',
+    })
   }
 }
 
@@ -381,7 +349,7 @@ export async function getJobApplications(jobId: string) {
     }
 
     // 自分の求人のみ応募者情報を取得可能
-    if ((job as any).employerId !== employer.id) {
+    if (job.employerId !== employer.id) {
       throw new Error('閲覧権限がありません')
     }
 
@@ -446,8 +414,11 @@ export async function getJobApplications(jobId: string) {
       created_at: app.createdAt.toISOString(),
     }))
   } catch (error) {
-    console.error('Error getting job applications:', error)
-    return []
+    return handleDataFetchError(error, {
+      context: 'job',
+      operation: 'getJobApplications',
+      defaultErrorMessage: '応募一覧の取得に失敗しました',
+    }, [])
   }
 }
 

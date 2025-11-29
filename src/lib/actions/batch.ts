@@ -5,6 +5,7 @@ import { getFriends } from './friends'
 import { getNotifications, getUnreadNotificationCount } from './notifications'
 import { getApplications } from './applications'
 import { getGroups } from './groups'
+import { handleDataFetchError } from '@/lib/utils/error-handler'
 
 /**
  * 複数のデータを一度に取得するバッチ処理
@@ -43,14 +44,17 @@ export async function getBatchData(jobId?: string): Promise<BatchData> {
       groups,
     }
   } catch (error) {
-    console.error('Error getting batch data:', error)
-    return {
+    return handleDataFetchError(error, {
+      context: 'batch',
+      operation: 'getBatchData',
+      defaultErrorMessage: 'データの取得に失敗しました',
+    }, {
       friends: [],
       notifications: [],
       unreadNotificationCount: 0,
       applications: [],
       groups: [],
-    }
+    })
   }
 }
 

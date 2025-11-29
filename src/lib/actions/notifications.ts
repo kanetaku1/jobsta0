@@ -6,6 +6,8 @@ import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache/server-cache'
 import { randomUUID } from 'crypto'
 import type { Notification, NotificationType } from '@/types/application'
+import { handleServerActionError, handleDataFetchError, handleError } from '@/lib/utils/error-handler'
+import { transformNotificationType } from '@/lib/utils/prisma-transformers'
 
 /**
  * ユーザーの通知一覧を取得（キャッシュ付き、10秒）
@@ -46,8 +48,11 @@ export async function getNotifications(): Promise<Notification[]> {
       }
     )()
   } catch (error) {
-    console.error('Error getting notifications:', error)
-    return []
+    return handleDataFetchError(error, {
+      context: 'notification',
+      operation: 'getNotifications',
+      defaultErrorMessage: '通知一覧の取得に失敗しました',
+    }, [])
   }
 }
 
@@ -62,7 +67,7 @@ export async function createNotification(
       data: {
         id: randomUUID(),
         userId: notification.userId,
-        type: notification.type.toUpperCase().replace(/_/g, '_') as any,
+        type: transformNotificationType(notification.type),
         jobId: notification.jobId,
         jobTitle: notification.jobTitle,
         fromUserName: notification.fromUserName,
@@ -92,8 +97,11 @@ export async function createNotification(
       createdAt: newNotification.createdAt.toISOString(),
     }
   } catch (error) {
-    console.error('Error creating notification:', error)
-    return null
+    return handleDataFetchError(error, {
+      context: 'notification',
+      operation: 'createNotification',
+      defaultErrorMessage: '通知の作成に失敗しました',
+    }, null)
   }
 }
 
@@ -126,7 +134,11 @@ export async function markNotificationAsRead(notificationId: string): Promise<bo
 
     return true
   } catch (error) {
-    console.error('Error marking notification as read:', error)
+    handleError(error, {
+      context: 'notification',
+      operation: 'markNotificationAsRead',
+      defaultErrorMessage: '通知の既読状態の更新に失敗しました',
+    })
     return false
   }
 }
@@ -158,8 +170,11 @@ export async function getUnreadNotificationCount(): Promise<number> {
       }
     )()
   } catch (error) {
-    console.error('Error getting unread notification count:', error)
-    return 0
+    return handleDataFetchError(error, {
+      context: 'notification',
+      operation: 'getUnreadNotificationCount',
+      defaultErrorMessage: '未読通知数の取得に失敗しました',
+    }, 0)
   }
 }
 

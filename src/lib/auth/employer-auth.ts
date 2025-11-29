@@ -149,7 +149,7 @@ export async function getCurrentEmployer() {
     where: { supabaseId: user.id },
   })
 
-  if (!dbUser || (dbUser as any).role !== 'EMPLOYER') {
+  if (!dbUser || dbUser.role !== 'EMPLOYER') {
     return null
   }
 

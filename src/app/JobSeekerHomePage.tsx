@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
 import { Button } from '@/components/ui/button'
@@ -12,7 +11,6 @@ import { Button } from '@/components/ui/button'
  * 未認証の場合はログインリンクと雇用主向けリンクを表示
  */
 export function JobSeekerHomePage() {
-  const router = useRouter()
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 
   useEffect(() => {

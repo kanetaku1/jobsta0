@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Clock, CheckCircle, XCircle, Users, User, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -21,7 +20,6 @@ type ApplicationWithDetails = ApplicationGroup & {
 }
 
 export default function ApplicationsPage() {
-  const router = useRouter()
   const [applications, setApplications] = useState<ApplicationWithDetails[]>([])
   const [loading, setLoading] = useState(true)
 
