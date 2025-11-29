@@ -14,7 +14,7 @@ export function isInAppBrowser(userAgent?: string): boolean {
   
   const ua = userAgent.toLowerCase()
   
-  // LINE / Facebook / Instagram / Twitter など代表的なインアプリブラウザを検知
+  // LINE / Facebook / Instagram / Twitter / Discord / Slack など代表的なインアプリブラウザを検知
   return (
     ua.includes('line') ||
     ua.includes('fbav') ||
@@ -28,7 +28,9 @@ export function isInAppBrowser(userAgent?: string): boolean {
     ua.includes('qqbrowser') ||
     ua.includes('mqqbrowser') || 
     ua.includes('discord') ||
-    ua.includes('slack')
+    ua.includes('discordbot') ||
+    ua.includes('slack') ||
+    ua.includes('slackbot')
   )
 }
 
