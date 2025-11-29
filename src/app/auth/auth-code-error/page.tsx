@@ -13,6 +13,13 @@ function AuthCodeErrorContent() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full text-center">
         <div className="mb-6">
+          <div className="mb-4 rounded-md bg-yellow-50 px-4 py-3 text-left">
+            <p className="text-xs text-yellow-800">
+              LINEやSNSアプリの中でこの画面が表示された場合は、
+              右上のメニューから「Safariで開く」または「Chromeで開く」を選んで、
+              再度ログインをお試しください。
+            </p>
+          </div>
           <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
             <svg
               className="w-8 h-8 text-red-600"
@@ -66,6 +73,8 @@ function AuthCodeErrorContent() {
         <div className="mt-6 pt-6 border-t border-gray-200">
           <p className="text-xs text-gray-500">
             問題が続く場合は、ブラウザのキャッシュをクリアしてから再度お試しください。
+            それでも解決しない場合は、外部ブラウザ（Safari / Chrome）で
+            「https://jobsta0.vercel.app」を直接開いてお試しください。
           </p>
         </div>
       </div>
