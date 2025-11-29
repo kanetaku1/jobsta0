@@ -1,26 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
 import { isInAppBrowser } from '@/lib/utils/browser-detection'
+import { ExternalBrowserInstructions } from '@/components/auth/ExternalBrowserInstructions'
 
 export default function LoginPage() {
   const { toast } = useToast()
-  const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [inApp, setInApp] = useState(false)
 
   useEffect(() => {
     const detected = isInAppBrowser()
     setInApp(detected)
-    
-    // インアプリブラウザが検出された場合は専用ページにリダイレクト
-    if (detected) {
-      router.push('/auth/in-app-browser')
-    }
-  }, [router])
+  }, [])
 
   const handleLineLogin = async () => {
     try {
@@ -56,22 +50,24 @@ export default function LoginPage() {
     }
   }
 
-  // インアプリブラウザの場合は何も表示しない（リダイレクト中）
-  if (inApp) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <p className="text-gray-600">リダイレクト中...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
         <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">Jobsta</h1>
         <p className="text-gray-600 mb-8 text-center">友達と応募できる短期バイトマッチングアプリ</p>
+        
+        {inApp && (
+          <div className="mb-6 rounded-md bg-yellow-50 border border-yellow-200 px-4 py-3">
+            <p className="text-sm text-yellow-800 font-medium mb-2">
+              現在、インアプリブラウザで表示されています。
+            </p>
+            <p className="text-xs text-yellow-700 mb-3">
+              LINEログインは、インアプリブラウザでは正常に動作しない場合があります。
+              外部ブラウザ（Safari / Chrome）で開くことをお勧めします。
+            </p>
+            <ExternalBrowserInstructions showCurrentStatus={false} />
+          </div>
+        )}
         
         <Button
           onClick={handleLineLogin}

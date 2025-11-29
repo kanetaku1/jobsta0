@@ -20,7 +20,7 @@ export function ExternalBrowserInstructions({
 
   return (
     <>
-      <div className="mb-6 rounded-md bg-yellow-50 px-4 py-3 text-left">
+      <div className="rounded-md bg-yellow-50 px-4 py-3 text-left">
         <p className="text-sm text-yellow-800 font-medium mb-2">
           以下の手順で外部ブラウザで開いてください：
         </p>

@@ -1,19 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma/client'
-import { isInAppBrowser } from '@/lib/utils/browser-detection'
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const next = requestUrl.searchParams.get('next') || '/employer/jobs'
-
-  // インアプリブラウザを検出
-  const userAgent = request.headers.get('user-agent') || ''
-  if (isInAppBrowser(userAgent)) {
-    // インアプリブラウザの場合は専用ページにリダイレクト
-    return NextResponse.redirect(new URL('/auth/in-app-browser', request.url))
-  }
 
   if (code) {
     const supabase = await createClient()

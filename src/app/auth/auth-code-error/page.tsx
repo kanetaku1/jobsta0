@@ -20,7 +20,6 @@ function AuthCodeErrorContent() {
       icon={icon}
       title="認証エラー"
       description="ログイン処理中にエラーが発生しました。"
-      showInAppBrowserWarning={true}
       errorMessage={error || undefined}
     >
       <p className="text-sm text-gray-500 mb-6">
