@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createJob } from '@/lib/actions/jobs'
 import { useToast } from '@/components/ui/use-toast'
+import { validateCreateJobForm } from '@/lib/utils/job-form-validation'
 
 export function CreateJobForm() {
   const router = useRouter()
@@ -56,39 +57,14 @@ export function CreateJobForm() {
 
     try {
       // バリデーション
-      if (!formData.companyName.trim()) {
-        throw new Error('会社名・店舗名を入力してください')
-      }
-      if (!formData.title.trim()) {
-        throw new Error('求人のタイトルを入力してください')
-      }
-      if (!formData.workHours.trim()) {
-        throw new Error('勤務時間を入力してください')
-      }
-      if (!formData.hourlyWage || Number(formData.hourlyWage) <= 0) {
-        throw new Error('時給を正しく入力してください')
-      }
-      if (!formData.location.trim()) {
-        throw new Error('勤務地を入力してください')
-      }
-      if (!formData.recruitmentCount || Number(formData.recruitmentCount) <= 0) {
-        throw new Error('募集人数を正しく入力してください')
-      }
-      if (!formData.jobContent.trim()) {
-        throw new Error('業務内容を入力してください')
-      }
-
       const validDates = dates.filter((date) => date.trim() !== '')
-      if (validDates.length === 0) {
-        throw new Error('少なくとも1つの日付を入力してください')
-      }
+      const validationResult = validateCreateJobForm({
+        ...formData,
+        dates: validDates,
+      })
 
-      // 日付の形式チェック
-      for (const dateStr of validDates) {
-        const date = new Date(dateStr)
-        if (isNaN(date.getTime())) {
-          throw new Error('日付の形式が正しくありません')
-        }
+      if (!validationResult.isValid) {
+        throw new Error(validationResult.error)
       }
 
       const result = await createJob({
@@ -106,14 +82,14 @@ export function CreateJobForm() {
         transportFee: formData.transportFee ? Number(formData.transportFee) : undefined,
       })
 
-      if (result.success && result.jobs) {
+      if (result.success && result.jobs.length > 0) {
         toast({
           title: '求人を作成しました',
           description: `${result.jobs.length}件の求人を作成しました`,
         })
         router.push('/employer/jobs')
       } else {
-        throw new Error(result.error || '求人の作成に失敗しました')
+        throw new Error((result as any).error || '求人の作成に失敗しました')
       }
     } catch (error) {
       toast({

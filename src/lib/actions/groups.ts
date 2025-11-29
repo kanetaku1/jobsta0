@@ -6,6 +6,8 @@ import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache/server-cache'
 import type { Group, GroupMember, GroupMemberStatus } from '@/types/application'
 import { randomUUID } from 'crypto'
+import { handleServerActionError, handleDataFetchError, handleError } from '@/lib/utils/error-handler'
+import { transformGroupToAppFormat, transformGroupMemberStatus } from '@/lib/utils/prisma-transformers'
 
 /**
  * ユーザーのグループ一覧を取得（キャッシュ付き）
@@ -17,7 +19,7 @@ export async function getGroups(jobId?: string): Promise<Group[]> {
     const cacheKey = `groups:${user.id}:${jobId || 'all'}`
     
     const getGroupsData = async () => {
-      const where: any = { ownerId: user.id }
+      const where: { ownerId: string; jobId?: string } = { ownerId: user.id }
       if (jobId) {
         where.jobId = jobId
       }
@@ -41,22 +43,7 @@ export async function getGroups(jobId?: string): Promise<Group[]> {
         orderBy: { createdAt: 'desc' },
       })
 
-      return groups.map((g: any) => ({
-        id: g.id,
-        jobId: g.jobId || '',
-        ownerName: g.ownerName,
-        ownerUserId: g.ownerId,
-        members: g.members.map((m: any) => ({
-          id: m.id,
-          name: m.user?.displayName || m.user?.name || m.name,
-          status: m.status.toLowerCase() as GroupMemberStatus,
-          userId: m.userId || undefined,
-        })),
-        requiredCount: g.members.length, // 暫定的にメンバー数を使用
-        groupInviteLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/group/${g.id}`,
-        createdAt: g.createdAt.toISOString(),
-        updatedAt: g.updatedAt.toISOString(),
-      }))
+      return groups.map((g) => transformGroupToAppFormat(g))
     }
 
     return await unstable_cache(
@@ -68,8 +55,11 @@ export async function getGroups(jobId?: string): Promise<Group[]> {
       }
     )()
   } catch (error) {
-    console.error('Error getting groups:', error)
-    return []
+    return handleDataFetchError(error, {
+      context: 'group',
+      operation: 'getGroups',
+      defaultErrorMessage: 'グループ一覧の取得に失敗しました',
+    }, [])
   }
 }
 
@@ -99,7 +89,7 @@ export async function createGroup(
             status: 'PENDING',
           })),
         },
-      } as any,
+      },
       include: {
         members: {
           include: {
@@ -113,32 +103,20 @@ export async function createGroup(
           },
         },
       },
-    }) as any
+    })
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
     revalidateTag(CACHE_TAGS.GROUPS)
     revalidateTag(`${CACHE_TAGS.GROUPS}:${user.id}`)
 
-    return {
-      id: group.id,
-      jobId: (group as any).jobId || '',
-      ownerName: group.ownerName,
-      ownerUserId: group.ownerId,
-      members: (group as any).members.map((m: any) => ({
-        id: m.id,
-        name: m.user?.displayName || m.user?.name || m.name,
-        status: m.status.toLowerCase() as GroupMemberStatus,
-        userId: m.userId || undefined,
-      })),
-      requiredCount,
-      groupInviteLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/group/${group.id}`,
-      createdAt: group.createdAt.toISOString(),
-      updatedAt: group.updatedAt.toISOString(),
-    }
+    return transformGroupToAppFormat(group)
   } catch (error) {
-    console.error('Error creating group:', error)
-    return null
+    return handleDataFetchError(error, {
+      context: 'group',
+      operation: 'createGroup',
+      defaultErrorMessage: 'グループの作成に失敗しました',
+    }, null)
   }
 }
 
@@ -172,22 +150,7 @@ export async function getGroup(groupId: string): Promise<Group | null> {
         return null
       }
 
-      return {
-        id: group.id,
-        jobId: (group as any).jobId || '',
-        ownerName: group.ownerName,
-        ownerUserId: group.ownerId,
-        members: (group as any).members.map((m: any) => ({
-          id: m.id,
-          name: m.user?.displayName || m.user?.name || m.name,
-          status: m.status.toLowerCase() as GroupMemberStatus,
-          userId: m.userId || undefined,
-        })),
-        requiredCount: (group as any).members.length, // 暫定的にメンバー数を使用
-        groupInviteLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/group/${group.id}`,
-        createdAt: group.createdAt.toISOString(),
-        updatedAt: group.updatedAt.toISOString(),
-      }
+      return transformGroupToAppFormat(group)
     }
 
     return await unstable_cache(
@@ -199,8 +162,11 @@ export async function getGroup(groupId: string): Promise<Group | null> {
       }
     )()
   } catch (error) {
-    console.error('Error getting group:', error)
-    return null
+    return handleDataFetchError(error, {
+      context: 'group',
+      operation: 'getGroup',
+      defaultErrorMessage: 'グループの取得に失敗しました',
+    }, null)
   }
 }
 
@@ -237,22 +203,7 @@ export async function getGroupsByIds(groupIds: string[]): Promise<Map<string, Gr
       const groupsMap = new Map<string, Group>()
       
       for (const group of groups) {
-        groupsMap.set(group.id, {
-          id: group.id,
-          jobId: (group as any).jobId || '',
-          ownerName: group.ownerName,
-          ownerUserId: group.ownerId,
-          members: (group as any).members.map((m: any) => ({
-            id: m.id,
-            name: m.user?.displayName || m.user?.name || m.name,
-            status: m.status.toLowerCase() as GroupMemberStatus,
-            userId: m.userId || undefined,
-          })),
-          requiredCount: (group as any).members.length,
-          groupInviteLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/group/${group.id}`,
-          createdAt: group.createdAt.toISOString(),
-          updatedAt: group.updatedAt.toISOString(),
-        })
+        groupsMap.set(group.id, transformGroupToAppFormat(group))
       }
       
       return groupsMap
@@ -267,8 +218,11 @@ export async function getGroupsByIds(groupIds: string[]): Promise<Map<string, Gr
       }
     )()
   } catch (error) {
-    console.error('Error getting groups by IDs:', error)
-    return new Map()
+    return handleDataFetchError(error, {
+      context: 'group',
+      operation: 'getGroupsByIds',
+      defaultErrorMessage: 'グループの取得に失敗しました',
+    }, new Map())
   }
 }
 
@@ -296,7 +250,7 @@ export async function updateGroupMemberStatus(
     await prisma.groupMember.update({
       where: { id: memberId },
       data: {
-        status: status.toUpperCase() as any,
+        status: transformGroupMemberStatus(status),
       },
     })
 
@@ -308,7 +262,11 @@ export async function updateGroupMemberStatus(
 
     return true
   } catch (error) {
-    console.error('Error updating group member status:', error)
+    handleError(error, {
+      context: 'group',
+      operation: 'updateGroupMemberStatus',
+      defaultErrorMessage: 'グループメンバーステータスの更新に失敗しました',
+    })
     return false
   }
 }
@@ -361,8 +319,11 @@ export async function addMemberToGroup(
 
     return { success: true, memberId: member.id }
   } catch (error) {
-    console.error('Error adding member to group:', error)
-    return { success: false }
+    return handleServerActionError(error, {
+      context: 'group',
+      operation: 'addMemberToGroup',
+      defaultErrorMessage: 'メンバーの追加に失敗しました',
+    })
   }
 }
 

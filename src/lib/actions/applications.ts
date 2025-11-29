@@ -6,6 +6,8 @@ import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache/server-cache'
 import { randomUUID } from 'crypto'
 import type { ApplicationGroup, ApplicationGroupStatus } from '@/types/application'
+import { handleServerActionError, handleDataFetchError, handleError } from '@/lib/utils/error-handler'
+import { transformApplicationStatus } from '@/lib/utils/prisma-transformers'
 
 /**
  * ユーザーの応募一覧を取得（キャッシュ付き）
@@ -64,8 +66,11 @@ export async function getApplications(): Promise<ApplicationGroup[]> {
       }
     )()
   } catch (error) {
-    console.error('Error getting applications:', error)
-    return []
+    return handleDataFetchError(error, {
+      context: 'application',
+      operation: 'getApplications',
+      defaultErrorMessage: '応募一覧の取得に失敗しました',
+    }, [])
   }
 }
 
@@ -107,7 +112,7 @@ export async function createApplication(
               status: 'PENDING',
             })),
           },
-        } as any,
+        },
       })
       finalGroupId = group.id
     }
@@ -157,8 +162,11 @@ export async function createApplication(
       updatedAt: application.updatedAt.toISOString(),
     }
   } catch (error) {
-    console.error('Error creating application:', error)
-    return null
+    return handleDataFetchError(error, {
+      context: 'application',
+      operation: 'createApplication',
+      defaultErrorMessage: '応募の作成に失敗しました',
+    }, null)
   }
 }
 
@@ -185,7 +193,7 @@ export async function updateApplicationStatus(
     await prisma.application.update({
       where: { id: applicationId },
       data: {
-        status: status.toUpperCase() as any,
+        status: transformApplicationStatus(status),
       },
     })
 
@@ -196,7 +204,11 @@ export async function updateApplicationStatus(
 
     return true
   } catch (error) {
-    console.error('Error updating application status:', error)
+    handleError(error, {
+      context: 'application',
+      operation: 'updateApplicationStatus',
+      defaultErrorMessage: '応募ステータスの更新に失敗しました',
+    })
     return false
   }
 }

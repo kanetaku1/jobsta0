@@ -1,20 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
-import { isInAppBrowser } from '@/lib/utils/browser-detection'
-import { ExternalBrowserInstructions } from '@/components/auth/ExternalBrowserInstructions'
 
 export default function LoginPage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
-  const [inApp, setInApp] = useState(false)
-
-  useEffect(() => {
-    const detected = isInAppBrowser()
-    setInApp(detected)
-  }, [])
 
   const handleLineLogin = async () => {
     try {
@@ -56,18 +48,15 @@ export default function LoginPage() {
         <h1 className="text-3xl font-bold text-gray-800 mb-2 text-center">Jobsta</h1>
         <p className="text-gray-600 mb-8 text-center">友達と応募できる短期バイトマッチングアプリ</p>
         
-        {inApp && (
-          <div className="mb-6 rounded-md bg-yellow-50 border border-yellow-200 px-4 py-3">
-            <p className="text-sm text-yellow-800 font-medium mb-2">
-              現在、インアプリブラウザで表示されています。
-            </p>
-            <p className="text-xs text-yellow-700 mb-3">
-              LINEログインは、インアプリブラウザでは正常に動作しない場合があります。
-              外部ブラウザ（Safari / Chrome）で開くことをお勧めします。
-            </p>
-            <ExternalBrowserInstructions showCurrentStatus={false} />
-          </div>
-        )}
+        <div className="mb-6 rounded-md bg-yellow-50 border border-yellow-200 px-4 py-3">
+          <p className="text-sm text-yellow-800 font-medium mb-2">
+            ⚠️ インアプリブラウザについて
+          </p>
+          <p className="text-xs text-yellow-700">
+            LINEやSNSアプリ内のブラウザから開いている場合、LINEログインが正常に動作しない可能性があります。
+            ログインがうまくいかない場合は、画面右上のメニューから「Safariで開く」または「Chromeで開く」を選んで、外部ブラウザで再度お試しください。
+          </p>
+        </div>
         
         <Button
           onClick={handleLineLogin}

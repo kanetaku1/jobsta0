@@ -36,7 +36,7 @@ export default async function EmployerJobsPage() {
 
         <div className="bg-white rounded-lg shadow-lg p-6 mb-4">
           <p className="text-gray-600">
-            ログイン中: {(employer as any).name || employer.email}
+            ログイン中: {employer.name || employer.email}
           </p>
         </div>
 

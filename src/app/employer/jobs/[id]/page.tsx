@@ -24,7 +24,7 @@ export default async function EmployerJobDetailPage({
   }
 
   // 自分の求人か確認
-  if ((job as any).employer_id !== employer.id) {
+  if (job.employer_id !== employer.id) {
     redirect('/employer/jobs')
   }
 

@@ -92,7 +92,7 @@ export async function requireAuth() {
 export async function requireEmployer() {
   const user = await requireAuth()
   
-  if ((user as any).role !== 'EMPLOYER') {
+  if (user.role !== 'EMPLOYER') {
     throw new Error('この機能にアクセスするには事業者ロールが必要です。')
   }
   

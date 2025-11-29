@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, UserPlus, Edit, Trash2, Copy, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -14,7 +13,6 @@ import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
 import type { Friend } from '@/types/application'
 
 export default function FriendsPage() {
-  const router = useRouter()
   const { toast } = useToast()
   const [friends, setFriends] = useState<Friend[]>([])
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
