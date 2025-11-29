@@ -15,7 +15,8 @@ export async function signUpEmployer(email: string, password: string, name: stri
   const supabase = await createClient()
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-  const emailRedirectTo = `${baseUrl}/employer/auth/confirm`
+  // PKCE flowを使用する場合、codeパラメータは /employer/auth/callback で処理される
+  const emailRedirectTo = `${baseUrl}/employer/auth/callback`
 
   const { data, error } = await supabase.auth.signUp({
     email,
