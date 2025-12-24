@@ -3,6 +3,7 @@ export type Friend = {
   id: string
   name: string
   email?: string
+  userId?: string // UserテーブルのID（ログイン済みの場合）
 }
 
 // 応募グループの状態

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { User, Mail, Phone, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { createApplication } from '@/lib/actions/applications'
+import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
 
 type IndividualApplicationFormProps = {
   jobId: string
@@ -20,6 +21,25 @@ export function IndividualApplicationForm({ jobId, jobTitle, onSuccess }: Indivi
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [submitting, setSubmitting] = useState(false)
+
+  // コンポーネントマウント時にユーザー情報を自動入力
+  useEffect(() => {
+    const user = getCurrentUserFromAuth0()
+    if (user) {
+      // 名前を自動入力
+      const displayName = user.name
+      if (displayName) {
+        setName(displayName)
+      }
+      
+      // メールアドレスを自動入力
+      if (user.email) {
+        setEmail(user.email)
+      }
+      
+      // 電話番号はAuth0から取得できないため、空欄のまま
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
