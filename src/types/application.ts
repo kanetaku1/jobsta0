@@ -21,6 +21,19 @@ export type ApplicationGroup = {
   updatedAt: string
 }
 
+// 求人別の応募者表示用
+export type ApplicantView = {
+  applicationId: string
+  applicantUserId: string
+  displayName: string
+  avatarUrl?: string | null
+  isFriend: boolean
+  isSelf: boolean
+  groupId?: string
+  status: ApplicationGroupStatus
+  createdAt: string
+}
+
 // 通知の型
 export type NotificationType = 'application_invitation' | 'application_approved' | 'application_rejected' | 'group_invitation'
 

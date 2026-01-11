@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma/client'
 import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache/server-cache'
 import { randomUUID } from 'crypto'
-import type { ApplicationGroup, ApplicationGroupStatus } from '@/types/application'
+import type { ApplicantView, ApplicationGroup, ApplicationGroupStatus } from '@/types/application'
 import { handleServerActionError, handleDataFetchError, handleError } from '@/lib/utils/error-handler'
 import { transformApplicationStatus } from '@/lib/utils/prisma-transformers'
 
@@ -213,3 +213,64 @@ export async function updateApplicationStatus(
   }
 }
 
+/**
+ * 求人に応募しているユーザーの一覧を取得し、フレンドかどうかで表示情報を出し分け
+ */
+export async function getJobApplicantsForUser(jobId: string): Promise<ApplicantView[]> {
+  try {
+    const user = await requireAuth()
+
+    const friendUserIds = new Set<string>()
+    const friends = await prisma.friend.findMany({
+      where: { userId: user.id, friendUserId: { not: null } },
+      select: { friendUserId: true },
+    })
+    friends.forEach((f) => {
+      if (f.friendUserId) {
+        friendUserIds.add(f.friendUserId)
+      }
+    })
+
+    const applications = await prisma.application.findMany({
+      where: { jobId },
+      include: {
+        applicant: {
+          select: {
+            id: true,
+            name: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+
+    return applications.map((app, index) => {
+      const isSelf = app.applicantId === user.id
+      const isFriend = friendUserIds.has(app.applicantId)
+      const applicantName =
+        isSelf || isFriend
+          ? app.applicant.displayName || app.applicant.name || '応募者'
+          : `応募者${index + 1}`
+
+      return {
+        applicationId: app.id,
+        applicantUserId: app.applicantId,
+        displayName: applicantName,
+        avatarUrl: isFriend || isSelf ? app.applicant.avatarUrl : null,
+        isFriend,
+        isSelf,
+        groupId: app.groupId || undefined,
+        status: app.status.toLowerCase() as ApplicationGroupStatus,
+        createdAt: app.createdAt.toISOString(),
+      }
+    })
+  } catch (error) {
+    return handleDataFetchError(error, {
+      context: 'application',
+      operation: 'getJobApplicantsForUser',
+      defaultErrorMessage: '応募者一覧の取得に失敗しました',
+    }, [])
+  }
+}
