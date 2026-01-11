@@ -102,9 +102,12 @@ export function transformGroupToAppFormat(
       id: m.id,
       name: m.name,
       status: m.status.toLowerCase() as 'pending' | 'approved' | 'rejected',
+      applicationStatus: m.applicationStatus 
+        ? (m.applicationStatus.toLowerCase() as 'participating' | 'not_participating' | 'pending')
+        : undefined,
       userId: m.userId || undefined,
     })),
-    requiredCount: group.members.length,
+    requiredCount: group.requiredCount || group.members.length,
     groupInviteLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/group/${group.id}`,
     createdAt: group.createdAt.toISOString(),
     updatedAt: group.updatedAt.toISOString(),

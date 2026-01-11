@@ -239,7 +239,7 @@ export async function addFriendByUserId(
     }
 
     // 被招待者の友達リストに招待者を追加
-    const friendName1 = '友達' + inviterUser.id
+    const friendName1 = inviterUser.displayName || inviterUser.name || '友達'
     const newFriend1 = await prisma.friend.create({
       data: {
         userId: invitedUser.id,
@@ -268,7 +268,7 @@ export async function addFriendByUserId(
     })
 
     if (!existingFriend2) {
-      const friendName2 = '友達' + invitedUser.id
+      const friendName2 = invitedUser.displayName || invitedUser.name || '友達'
       await prisma.friend.create({
         data: {
           userId: inviterUser.id,

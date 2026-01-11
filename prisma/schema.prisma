@@ -47,17 +47,18 @@ enum UserRole {
 
 // ==================== グループ ====================
 model Group {
-  id          String   @id @default(uuid())
-  ownerId     String
-  ownerName   String   // グループ作成者の名前
-  jobId       String?  // 求人ID（求人ごとにグループを作成）
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  ownerId       String
+  ownerName     String   // グループ作成者の名前
+  jobId         String?  // 求人ID（求人ごとにグループを作成）
+  requiredCount Int?     // 希望者数（応募に必要な人数）
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // リレーション
-  owner       User         @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members     GroupMember[]
-  applications Application[]
+  owner         User         @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       GroupMember[]
+  applications  Application[]
 
   @@index([ownerId])
   @@index([jobId])
@@ -66,19 +67,20 @@ model Group {
 
 // ==================== グループメンバー ====================
 model GroupMember {
-  id         String            @id @default(uuid())
-  groupId    String
-  userId     String?           // ユーザーID（ログイン済みの場合）
-  name       String            // メンバー名
-  lineId     String?           // LINE ID
-  inviteLink String?           // 招待リンク
-  status     GroupMemberStatus @default(PENDING)
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
+  id               String                    @id @default(uuid())
+  groupId          String
+  userId           String?                   // ユーザーID（ログイン済みの場合）
+  name             String                    // メンバー名
+  lineId           String?                   // LINE ID
+  inviteLink       String?                   // 招待リンク
+  status           GroupMemberStatus         @default(PENDING)
+  applicationStatus ApplicationParticipationStatus? // 応募への参加状況
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
 
   // リレーション
-  group      Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  group            Group                     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user             User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([groupId])
   @@index([userId])
@@ -89,6 +91,12 @@ enum GroupMemberStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum ApplicationParticipationStatus {
+  PARTICIPATING
+  NOT_PARTICIPATING
+  PENDING
 }
 
 // ==================== 求人 ====================
