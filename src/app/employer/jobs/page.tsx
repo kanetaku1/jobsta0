@@ -4,6 +4,8 @@ import { requireEmployerAuth } from '@/lib/auth/employer-auth'
 import { getEmployerJobs } from '@/lib/actions/jobs'
 import { signOutEmployer } from '@/lib/auth/employer-auth'
 import { Button } from '@/components/ui/button'
+import { CategoryBadge } from '@/components/jobs/CategoryBadge'
+import { JobCategory } from '@/types/job'
 
 export default async function EmployerJobsPage() {
   let employer
@@ -56,6 +58,11 @@ export default async function EmployerJobsPage() {
                 key={job.id}
                 className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 border border-gray-200"
               >
+                <div className="mb-3">
+                  <CategoryBadge 
+                    category={(job.category as JobCategory) || JobCategory.ONE_TIME_JOB} 
+                  />
+                </div>
                 <h2 className="text-xl font-semibold text-gray-800 mb-3 line-clamp-2">
                   {job.title || 'タイトルなし'}
                 </h2>
@@ -68,6 +75,11 @@ export default async function EmployerJobsPage() {
                 {job.job_date && (
                   <p className="text-gray-600 text-sm mb-2">
                     📅 {new Date(job.job_date).toLocaleDateString('ja-JP')}
+                  </p>
+                )}
+                {job.start_date && (
+                  <p className="text-gray-600 text-sm mb-2">
+                    📅 {new Date(job.start_date).toLocaleDateString('ja-JP')} 〜
                   </p>
                 )}
                 <div className="mt-4 pt-4 border-t border-gray-200">
