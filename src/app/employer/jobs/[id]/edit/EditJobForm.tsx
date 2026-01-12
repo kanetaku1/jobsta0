@@ -5,48 +5,29 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { updateJob, deleteJob } from '@/lib/actions/jobs'
 import { useToast } from '@/components/ui/use-toast'
 import { validateEditJobForm } from '@/lib/utils/job-form-validation'
-
+import { FileUploader } from '@/components/jobs/FileUploader'
+import { 
+  JobCategory, 
+  CompensationType, 
+  JOB_CATEGORY_LABELS, 
+  COMPENSATION_TYPE_LABELS,
+  CATEGORY_COMPENSATION_TYPES 
+} from '@/types/job'
 import type { Job } from '@/lib/utils/getData'
-
-type EditJobFormJob = {
-  id: string
-  title: string | null
-  job_date: string | null
-  company_name: string | null
-  work_hours: string | null
-  wage_amount: number | null
-  location: string | null
-  recruitment_count: number | null
-  job_content: string | null
-  requirements: string | null
-  application_deadline: string | null
-  notes: string | null
-  transport_fee: number | null
-}
 
 type EditJobFormProps = {
   job: Job
 }
 
-function transformJobForEditForm(job: Job): EditJobFormJob {
-  return {
-    id: job.id,
-    title: job.title,
-    job_date: job.job_date,
-    company_name: job.company_name,
-    work_hours: job.work_hours,
-    wage_amount: job.wage_amount,
-    location: job.location,
-    recruitment_count: job.recruitment_count,
-    job_content: job.job_content,
-    requirements: job.requirements,
-    application_deadline: job.application_deadline,
-    notes: job.notes,
-    transport_fee: job.transport_fee,
-  }
+type UploadedFile = {
+  url: string
+  fileName: string
+  fileType: 'pdf' | 'image'
+  fileSize: number
 }
 
 export function EditJobForm({ job }: EditJobFormProps) {
@@ -55,26 +36,55 @@ export function EditJobForm({ job }: EditJobFormProps) {
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const transformedJob = transformJobForEditForm(job)
+  // 初期ファイル
+  const initialFiles: UploadedFile[] = job.attachment_urls
+    ? JSON.parse(job.attachment_urls).map((url: string) => ({
+        url,
+        fileName: url.split('/').pop() || 'file',
+        fileType: url.toLowerCase().endsWith('.pdf') ? 'pdf' : 'image',
+        fileSize: 0
+      }))
+    : []
+
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>(initialFiles)
+
   const [formData, setFormData] = useState({
-    title: transformedJob.title || '',
-    companyName: transformedJob.company_name || '',
-    workHours: transformedJob.work_hours || '',
-    hourlyWage: transformedJob.wage_amount?.toString() || '',
-    location: transformedJob.location || '',
-    recruitmentCount: transformedJob.recruitment_count?.toString() || '',
-    jobContent: transformedJob.job_content || '',
-    requirements: transformedJob.requirements || '',
-    applicationDeadline: transformedJob.application_deadline
-      ? new Date(transformedJob.application_deadline).toISOString().slice(0, 16)
+    category: (job.category as JobCategory) || JobCategory.ONE_TIME_JOB,
+    title: job.title || '',
+    summary: job.summary || '',
+    companyName: job.company_name || '',
+    workHours: job.work_hours || '',
+    compensationType: (job.compensation_type as CompensationType) || CompensationType.HOURLY,
+    compensationAmount: job.compensation_amount?.toString() || '',
+    location: job.location || '',
+    recruitmentCount: job.recruitment_count?.toString() || '',
+    jobContent: job.job_content || '',
+    requirements: job.requirements || '',
+    applicationDeadline: job.application_deadline
+      ? new Date(job.application_deadline).toISOString().slice(0, 16)
       : '',
-    notes: transformedJob.notes || '',
-    transportFee: transformedJob.transport_fee?.toString() || '',
-    date: transformedJob.job_date ? new Date(transformedJob.job_date).toISOString().split('T')[0] : '',
+    notes: job.notes || '',
+    transportFee: job.transport_fee?.toString() || '',
+    date: job.job_date ? new Date(job.job_date).toISOString().split('T')[0] : '',
+    startDate: job.start_date ? new Date(job.start_date).toISOString().split('T')[0] : '',
+    endDate: job.end_date ? new Date(job.end_date).toISOString().split('T')[0] : '',
+    isFlexibleSchedule: job.is_flexible_schedule || false,
+    externalUrl: job.external_url || '',
+    externalUrlTitle: job.external_url_title || '',
   })
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleCategoryChange = (value: string) => {
+    const newCategory = value as JobCategory
+    const defaultCompensationType = CATEGORY_COMPENSATION_TYPES[newCategory][0]
+    setFormData((prev) => ({ 
+      ...prev, 
+      category: newCategory,
+      compensationType: defaultCompensationType
+    }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,30 +92,70 @@ export function EditJobForm({ job }: EditJobFormProps) {
     setLoading(true)
 
     try {
-      // バリデーション
-      const validationResult = validateEditJobForm({
-        ...formData,
+      // バリデーション用データ
+      const validationData = {
+        category: formData.category,
+        title: formData.title,
+        summary: formData.summary,
+        companyName: formData.companyName,
+        workHours: formData.workHours,
+        compensationType: formData.compensationType,
+        compensationAmount: formData.compensationAmount,
+        location: formData.location,
+        recruitmentCount: formData.recruitmentCount,
+        jobContent: formData.jobContent,
+        requirements: formData.requirements,
+        applicationDeadline: formData.applicationDeadline,
+        notes: formData.notes,
+        transportFee: formData.transportFee,
         date: formData.date,
-      })
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        isFlexibleSchedule: formData.isFlexibleSchedule,
+        externalUrl: formData.externalUrl,
+        externalUrlTitle: formData.externalUrlTitle,
+      }
 
+      const validationResult = validateEditJobForm(validationData)
       if (!validationResult.isValid) {
         throw new Error(validationResult.error)
       }
 
-      const result = await updateJob(job.id, {
+      // 更新データ
+      const updateJobData: any = {
+        category: formData.category,
         title: formData.title.trim(),
+        summary: formData.summary.trim(),
         companyName: formData.companyName.trim(),
-        date: formData.date,
         location: formData.location.trim(),
-        workHours: formData.workHours.trim(),
-        hourlyWage: Number(formData.hourlyWage),
         recruitmentCount: Number(formData.recruitmentCount),
         jobContent: formData.jobContent.trim(),
+        compensationType: formData.compensationType,
+        workHours: formData.workHours.trim(),
         requirements: formData.requirements.trim() || undefined,
         applicationDeadline: formData.applicationDeadline || undefined,
         notes: formData.notes.trim() || undefined,
         transportFee: formData.transportFee ? Number(formData.transportFee) : undefined,
-      })
+        externalUrl: formData.externalUrl.trim() || undefined,
+        externalUrlTitle: formData.externalUrlTitle.trim() || undefined,
+        attachmentUrls: uploadedFiles.map(f => f.url),
+      }
+
+      // 報酬額（無給以外の場合）
+      if (formData.compensationType !== CompensationType.NONE) {
+        updateJobData.compensationAmount = Number(formData.compensationAmount)
+      }
+
+      // カテゴリに応じた日付
+      if (formData.category === JobCategory.ONE_TIME_JOB || formData.category === JobCategory.VOLUNTEER) {
+        updateJobData.date = formData.date
+      } else {
+        updateJobData.startDate = formData.startDate
+        updateJobData.endDate = formData.endDate || undefined
+        updateJobData.isFlexibleSchedule = formData.isFlexibleSchedule
+      }
+
+      const result = await updateJob(job.id, updateJobData)
 
       if (result.success) {
         toast({
@@ -157,8 +207,29 @@ export function EditJobForm({ job }: EditJobFormProps) {
     }
   }
 
+  const availableCompensationTypes = CATEGORY_COMPENSATION_TYPES[formData.category]
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* カテゴリ選択 */}
+      <div>
+        <Label htmlFor="category" className="text-base font-semibold">
+          求人カテゴリ <span className="text-red-500">*</span>
+        </Label>
+        <Select value={formData.category} onValueChange={handleCategoryChange}>
+          <SelectTrigger className="mt-2">
+            <SelectValue placeholder="カテゴリを選択" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(JOB_CATEGORY_LABELS).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {/* 会社名・店舗名 */}
       <div>
         <Label htmlFor="companyName" className="text-base font-semibold">
@@ -191,25 +262,96 @@ export function EditJobForm({ job }: EditJobFormProps) {
         />
       </div>
 
-      {/* 日付 */}
+      {/* サマリー */}
       <div>
-        <Label htmlFor="date" className="text-base font-semibold">
-          勤務日 <span className="text-red-500">*</span>
+        <Label htmlFor="summary" className="text-base font-semibold">
+          サマリー（100〜200文字） <span className="text-red-500">*</span>
         </Label>
-        <Input
-          id="date"
-          type="date"
-          value={formData.date}
-          onChange={(e) => handleInputChange('date', e.target.value)}
+        <textarea
+          id="summary"
+          value={formData.summary}
+          onChange={(e) => handleInputChange('summary', e.target.value)}
+          placeholder="求人の要約を100〜200文字で入力してください"
           required
-          className="mt-2"
+          rows={3}
+          className="mt-2 flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         />
+        <p className="mt-1 text-xs text-gray-500">
+          {formData.summary.length}/200文字
+        </p>
       </div>
+
+      {/* 日付（カテゴリ別） */}
+      {(formData.category === JobCategory.ONE_TIME_JOB || formData.category === JobCategory.VOLUNTEER) && (
+        <div>
+          <Label htmlFor="date" className="text-base font-semibold">
+            {formData.category === JobCategory.VOLUNTEER ? '活動日' : '勤務日'}{' '}
+            <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="date"
+            type="date"
+            value={formData.date}
+            onChange={(e) => handleInputChange('date', e.target.value)}
+            required
+            className="mt-2"
+          />
+        </div>
+      )}
+
+      {/* 開始日・終了日（長期/インターン） */}
+      {(formData.category === JobCategory.PART_TIME || formData.category === JobCategory.INTERNSHIP) && (
+        <>
+          <div>
+            <Label htmlFor="startDate" className="text-base font-semibold">
+              勤務開始日 <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="startDate"
+              type="date"
+              value={formData.startDate}
+              onChange={(e) => handleInputChange('startDate', e.target.value)}
+              required
+              className="mt-2"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="endDate" className="text-base font-semibold">
+              勤務終了日 {formData.category === JobCategory.INTERNSHIP && <span className="text-red-500">*</span>}
+            </Label>
+            <Input
+              id="endDate"
+              type="date"
+              value={formData.endDate}
+              onChange={(e) => handleInputChange('endDate', e.target.value)}
+              required={formData.category === JobCategory.INTERNSHIP}
+              className="mt-2"
+            />
+          </div>
+
+          {formData.category === JobCategory.PART_TIME && (
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="isFlexibleSchedule"
+                checked={formData.isFlexibleSchedule}
+                onChange={(e) => handleInputChange('isFlexibleSchedule', e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <Label htmlFor="isFlexibleSchedule" className="text-sm font-normal">
+                シフトは柔軟に調整可能
+              </Label>
+            </div>
+          )}
+        </>
+      )}
 
       {/* 勤務時間 */}
       <div>
         <Label htmlFor="workHours" className="text-base font-semibold">
-          勤務時間 <span className="text-red-500">*</span>
+          {formData.category === JobCategory.VOLUNTEER ? '活動時間' : '勤務時間'}{' '}
+          <span className="text-red-500">*</span>
         </Label>
         <Input
           id="workHours"
@@ -222,27 +364,52 @@ export function EditJobForm({ job }: EditJobFormProps) {
         />
       </div>
 
-      {/* 時給 */}
+      {/* 報酬形式 */}
       <div>
-        <Label htmlFor="hourlyWage" className="text-base font-semibold">
-          時給（円） <span className="text-red-500">*</span>
+        <Label htmlFor="compensationType" className="text-base font-semibold">
+          報酬形式 <span className="text-red-500">*</span>
         </Label>
-        <Input
-          id="hourlyWage"
-          type="number"
-          min="0"
-          value={formData.hourlyWage}
-          onChange={(e) => handleInputChange('hourlyWage', e.target.value)}
-          placeholder="例：1200"
-          required
-          className="mt-2"
-        />
+        <Select 
+          value={formData.compensationType} 
+          onValueChange={(value) => handleInputChange('compensationType', value)}
+        >
+          <SelectTrigger className="mt-2">
+            <SelectValue placeholder="報酬形式を選択" />
+          </SelectTrigger>
+          <SelectContent>
+            {availableCompensationTypes.map((type) => (
+              <SelectItem key={type} value={type}>
+                {COMPENSATION_TYPE_LABELS[type]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
+      {/* 報酬額（無給以外） */}
+      {formData.compensationType !== CompensationType.NONE && (
+        <div>
+          <Label htmlFor="compensationAmount" className="text-base font-semibold">
+            報酬額（円） <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="compensationAmount"
+            type="number"
+            min="0"
+            value={formData.compensationAmount}
+            onChange={(e) => handleInputChange('compensationAmount', e.target.value)}
+            placeholder="例：1200"
+            required
+            className="mt-2"
+          />
+        </div>
+      )}
 
       {/* 勤務地 */}
       <div>
         <Label htmlFor="location" className="text-base font-semibold">
-          勤務地 <span className="text-red-500">*</span>
+          {formData.category === JobCategory.VOLUNTEER ? '活動場所' : '勤務地'}{' '}
+          <span className="text-red-500">*</span>
         </Label>
         <Input
           id="location"
@@ -275,7 +442,8 @@ export function EditJobForm({ job }: EditJobFormProps) {
       {/* 業務内容 */}
       <div>
         <Label htmlFor="jobContent" className="text-base font-semibold">
-          業務内容 <span className="text-red-500">*</span>
+          {formData.category === JobCategory.VOLUNTEER ? '活動内容' : '業務内容'}{' '}
+          <span className="text-red-500">*</span>
         </Label>
         <textarea
           id="jobContent"
@@ -333,6 +501,48 @@ export function EditJobForm({ job }: EditJobFormProps) {
         />
       </div>
 
+      {/* 外部リンク */}
+      <div>
+        <Label htmlFor="externalUrl" className="text-base font-semibold">
+          外部求人ページURL（任意）
+        </Label>
+        <Input
+          id="externalUrl"
+          type="url"
+          value={formData.externalUrl}
+          onChange={(e) => handleInputChange('externalUrl', e.target.value)}
+          placeholder="https://example.com/job"
+          className="mt-2"
+        />
+        {formData.externalUrl && (
+          <div className="mt-2">
+            <Label htmlFor="externalUrlTitle" className="text-sm font-medium">
+              リンクのタイトル <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="externalUrlTitle"
+              type="text"
+              value={formData.externalUrlTitle}
+              onChange={(e) => handleInputChange('externalUrlTitle', e.target.value)}
+              placeholder="例：詳細はこちら"
+              required={!!formData.externalUrl}
+              className="mt-1"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ファイルアップロード */}
+      <div>
+        <Label className="text-base font-semibold">
+          添付ファイル（任意）
+        </Label>
+        <p className="text-xs text-gray-500 mt-1 mb-2">
+          求人票のPDFや画像を添付できます（最大5件、各5MB）
+        </p>
+        <FileUploader onFilesChange={setUploadedFiles} initialFiles={uploadedFiles} />
+      </div>
+
       {/* 備考 */}
       <div>
         <Label htmlFor="notes" className="text-base font-semibold">
@@ -369,4 +579,3 @@ export function EditJobForm({ job }: EditJobFormProps) {
     </form>
   )
 }
-

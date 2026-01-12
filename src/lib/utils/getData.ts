@@ -1,6 +1,23 @@
 import { getJobsAll as getJobsAllFromDB, getJob as getJobFromDB } from '@/lib/actions/jobs'
 
 export type Job = {
+    id: string
+    category: string
+    title: string | null
+    summary: string | null
+    description: string | null
+    location: string | null
+    compensation_type: string
+    compensation_amount: number | null
+    wage_amount: number | null
+    transport_fee: number | null
+    job_date: string | null
+    start_date: string | null
+    end_date: string | null
+    is_flexible_schedule: boolean | null
+    external_url: string | null
+    external_url_title: string | null
+    attachment_urls: string | null
     company_id: string | null
     company_name: string | null
     work_hours: string | null
@@ -9,15 +26,8 @@ export type Job = {
     requirements: string | null
     application_deadline: string | null
     notes: string | null
-    employer_id: string | null
+    employer_id: string
     created_at: string
-    description: string | null
-    id: string
-    job_date: string | null
-    location: string | null
-    title: string | null
-    transport_fee: number | null
-    wage_amount: number | null
 }
 
 // データベースから求人データを取得
