@@ -68,7 +68,7 @@ export async function getFriends(): Promise<Friend[]> {
       getFriendsData,
       [cacheKey],
       {
-        revalidate: 30, // 30秒キャッシュ
+        revalidate: 60, // 60秒キャッシュ
         tags: [CACHE_TAGS.FRIENDS, `${CACHE_TAGS.FRIENDS}:${user.id}`],
       }
     )()

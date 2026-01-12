@@ -48,8 +48,8 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
       
       const count = await getUnreadNotificationCount()
       
-      // キャッシュに保存（30秒TTL）
-      clientCache.set(cacheKey, { notifications: limitedNotifs, unreadCount: count }, 30000)
+      // キャッシュに保存（60秒TTL：ポーリング間隔に合わせて最適化）
+      clientCache.set(cacheKey, { notifications: limitedNotifs, unreadCount: count }, 60000)
       
       setNotifications(limitedNotifs)
       setUnreadCount(count)
@@ -59,13 +59,21 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   }, [limit])
 
   useEffect(() => {
-    loadNotifications()
+    let hasRun = false // 重複実行を防ぐフラグ
+    
+    const initialLoad = async () => {
+      if (hasRun) return
+      hasRun = true
+      await loadNotifications()
+    }
+    
+    initialLoad()
     
     if (autoRefresh) {
       const interval = setInterval(() => loadNotifications(false), refreshInterval)
       return () => clearInterval(interval)
     }
-  }, [limit, autoRefresh, refreshInterval])
+  }, [limit, autoRefresh, refreshInterval, loadNotifications])
 
   const handleMarkAsRead = useCallback(async (notificationId: string) => {
     const success = await markNotificationAsRead(notificationId)

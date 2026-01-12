@@ -8,7 +8,7 @@ import { useNotifications } from '@/hooks/useNotifications'
 export default function NotificationsPage() {
   const { unreadCount } = useNotifications({
     autoRefresh: true,
-    refreshInterval: 2000,
+    refreshInterval: 60000, // 60秒に最適化
   })
 
   return (

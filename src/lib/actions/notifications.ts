@@ -43,7 +43,7 @@ export async function getNotifications(): Promise<Notification[]> {
       getNotificationsData,
       [cacheKey],
       {
-        revalidate: 10, // 10秒キャッシュ（通知は更新頻度が高いため短め）
+        revalidate: 30, // 30秒キャッシュ（ポーリング間隔に合わせて最適化）
         tags: [CACHE_TAGS.NOTIFICATIONS, `${CACHE_TAGS.NOTIFICATIONS}:${user.id}`],
       }
     )()
@@ -165,7 +165,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
       getUnreadCount,
       [cacheKey],
       {
-        revalidate: 10, // 10秒キャッシュ
+        revalidate: 30, // 30秒キャッシュ（通知取得と統一）
         tags: [CACHE_TAGS.NOTIFICATIONS, `${CACHE_TAGS.NOTIFICATIONS}:${user.id}`],
       }
     )()

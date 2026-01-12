@@ -26,18 +26,8 @@ export function IndividualApplicationForm({ jobId, jobTitle, onSuccess }: Indivi
   useEffect(() => {
     const user = getCurrentUserFromAuth0()
     if (user) {
-      // 名前を自動入力
-      const displayName = user.name
-      if (displayName) {
-        setName(displayName)
-      }
-      
-      // メールアドレスを自動入力
-      if (user.email) {
-        setEmail(user.email)
-      }
-      
-      // 電話番号はAuth0から取得できないため、空欄のまま
+      setName(user.name || '')
+      setEmail(user.email || '')
     }
   }, [])
 
@@ -60,14 +50,21 @@ export function IndividualApplicationForm({ jobId, jobTitle, onSuccess }: Indivi
       const application = await createApplication(jobId, [])
       
       if (application) {
+        // クライアント側キャッシュを無効化
+        const { clientCache } = await import('@/lib/cache/client-cache')
+        clientCache.clear() // 全キャッシュをクリア
+        
         toast({
           title: '応募が完了しました',
           description: '応募情報を送信しました',
         })
-
         onSuccess()
       } else {
-        throw new Error('応募の作成に失敗しました')
+        toast({
+          title: 'エラー',
+          description: '応募の送信に失敗しました',
+          variant: 'destructive',
+        })
       }
     } catch (error) {
       toast({

@@ -2,34 +2,17 @@
  * 求人フォームのバリデーション関数
  */
 
-import { JobCategory, CompensationType } from '@/types/job'
+import { JobCategory, CompensationType, type JobFormData as BaseJobFormData, type ValidationResult } from '@/types/job'
 
-export type JobFormData = {
-  category: JobCategory
-  companyName: string
-  title: string
-  summary?: string
-  workHours: string
-  location: string
+// フォームバリデーション用の拡張型（string型で扱う項目がある）
+export type JobFormData = Omit<BaseJobFormData, 'recruitmentCount' | 'compensationAmount' | 'transportFee'> & {
   recruitmentCount: string
-  jobContent: string
-  compensationType: CompensationType
   compensationAmount?: string
   transportFee?: string
-  externalUrl?: string
-  externalUrlTitle?: string
   date?: string // EditJobFormのみ
-  dates?: string[] // CreateJobFormのみ
-  startDate?: string // 長期/インターン用
-  endDate?: string // 長期/インターン用
-  isFlexibleSchedule?: boolean
 }
 
-export type ValidationResult = {
-  isValid: boolean
-  error?: string
-  fieldErrors?: Record<string, string>
-}
+export type { ValidationResult }
 
 /**
  * URLバリデーション

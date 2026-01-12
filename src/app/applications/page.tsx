@@ -24,23 +24,27 @@ export default function ApplicationsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    let hasRun = false // 重複実行を防ぐフラグ
+    let isMounted = true // クリーンアップ用フラグ
+    
     const loadApplications = async () => {
+      if (hasRun || !isMounted) return
+      hasRun = true
+      
       const user = getCurrentUserFromAuth0()
       if (!user) {
-        setLoading(false)
+        if (isMounted) setLoading(false)
         return
       }
       
+      // getApplications()は既にユーザーIDでフィルタリング済み
       const applicationGroups = await getApplications()
-      
-      // ユーザーが応募したものだけを取得
-      const userApplications = applicationGroups.filter(
-        ag => ag.applicantUserId === user.id
-      )
+
+      if (!isMounted) return
 
       // 一括取得のためのIDを収集
-      const jobIds = [...new Set(userApplications.map(app => app.jobId).filter(Boolean))]
-      const groupIds = userApplications
+      const jobIds = [...new Set(applicationGroups.map(app => app.jobId).filter(Boolean))]
+      const groupIds = applicationGroups
         .map(app => app.groupId)
         .filter((id): id is string => Boolean(id))
 
@@ -58,8 +62,10 @@ export default function ApplicationsPage() {
         })(),
       ])
 
+      if (!isMounted) return
+
       // 各応募の詳細情報を構築（N+1問題を解決）
-      const applicationsWithDetails: ApplicationWithDetails[] = userApplications.map((app) => {
+      const applicationsWithDetails: ApplicationWithDetails[] = applicationGroups.map((app) => {
         // 求人情報を取得
         const job = jobsMap.get(app.jobId)
         const jobTitle = job?.title || undefined
@@ -87,11 +93,17 @@ export default function ApplicationsPage() {
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
 
-      setApplications(applicationsWithDetails)
-      setLoading(false)
+      if (isMounted) {
+        setApplications(applicationsWithDetails)
+        setLoading(false)
+      }
     }
 
     loadApplications()
+    
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   const getStatusBadge = (status: ApplicationGroup['status']) => {

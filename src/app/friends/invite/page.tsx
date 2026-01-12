@@ -19,15 +19,17 @@ export default function FriendInvitePage() {
   const [inviterName, setInviterName] = useState<string>('')
 
   useEffect(() => {
+    let isMounted = true
+    
     const loadData = async () => {
       // URLパラメータからfromUserIdを取得
       const fromId = searchParams.get('from')
       if (!fromId) {
-        setLoading(false)
+        if (isMounted) setLoading(false)
         return
       }
 
-      setFromUserId(fromId)
+      if (isMounted) setFromUserId(fromId)
 
       // ログイン状態を確認
       const currentUser = getCurrentUserFromAuth0()
@@ -47,26 +49,32 @@ export default function FriendInvitePage() {
         const existingFriend = friends.find(f => f.id === inviterUser.id)
         
         if (existingFriend) {
-          setAdded(true)
-          setInviterName(existingFriend.name)
-          setLoading(false)
+          if (isMounted) {
+            setAdded(true)
+            setInviterName(existingFriend.name)
+            setLoading(false)
+          }
           return
         }
       }
 
       // 招待者の情報を取得
       if (!inviterUser) {
-        toast({
-          title: 'エラー',
-          description: '招待者の情報が見つかりませんでした',
-          variant: 'destructive',
-        })
-        setLoading(false)
+        if (isMounted) {
+          toast({
+            title: 'エラー',
+            description: '招待者の情報が見つかりませんでした',
+            variant: 'destructive',
+          })
+          setLoading(false)
+        }
         return
       }
 
       // 双方向の友達関係を作成
       const result = await addFriendByUserId(fromId)
+      
+      if (!isMounted) return
       
       if (result) {
         setAdded(true)
@@ -88,7 +96,11 @@ export default function FriendInvitePage() {
     }
 
     loadData()
-  }, [searchParams, router, toast])
+    
+    return () => {
+      isMounted = false
+    }
+  }, []) // 依存配列を空にして初回のみ実行
 
 
   if (loading) {

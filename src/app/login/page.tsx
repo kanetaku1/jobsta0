@@ -9,37 +9,33 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   const handleLineLogin = async () => {
-    try {
-      setLoading(true)
-      
-      // Auth0の設定を環境変数から取得
-      const auth0Domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN
-      const auth0ClientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID
-      const redirectUri = `${window.location.origin}/auth/callback`
-      
-      if (!auth0Domain || !auth0ClientId) {
-        throw new Error('Auth0の設定が完了していません。環境変数を確認してください。')
-      }
-      
-      // Auth0の認証URLを構築（LINEログイン用）
-      const auth0AuthUrl = `https://${auth0Domain}/authorize?` +
-        `response_type=code&` +
-        `client_id=${auth0ClientId}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `scope=openid profile email&` +
-        `connection=line` // LINE接続を指定
-      
-      // Auth0の認証ページにリダイレクト
-      window.location.href = auth0AuthUrl
-    } catch (error) {
-      console.error('Unexpected error:', error)
+    setLoading(true)
+    
+    // Auth0の設定を環境変数から取得
+    const auth0Domain = process.env.NEXT_PUBLIC_AUTH0_DOMAIN
+    const auth0ClientId = process.env.NEXT_PUBLIC_AUTH0_CLIENT_ID
+    const redirectUri = `${window.location.origin}/auth/callback`
+    
+    if (!auth0Domain || !auth0ClientId) {
       toast({
         title: 'エラー',
-        description: error instanceof Error ? error.message : '予期しないエラーが発生しました。もう一度お試しください。',
+        description: 'Auth0の設定が完了していません。環境変数を確認してください。',
         variant: 'destructive',
       })
       setLoading(false)
+      return
     }
+    
+    // Auth0の認証URLを構築（LINEログイン用）
+    const auth0AuthUrl = `https://${auth0Domain}/authorize?` +
+      `response_type=code&` +
+      `client_id=${auth0ClientId}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `scope=openid profile email&` +
+      `connection=line` // LINE接続を指定
+    
+    // Auth0の認証ページにリダイレクト
+    window.location.href = auth0AuthUrl
   }
 
   return (

@@ -42,15 +42,20 @@ export async function getJob(id: string): Promise<Job | null> {
 
 // 複数のIDで求人を一括取得（N+1問題の解決）
 export async function getJobsByIds(ids: string[]): Promise<Map<string, Job>> {
-    const jobs = await getJobsAll()
-    const jobsMap = new Map<string, Job>()
-    
-    for (const id of ids) {
-        const job = jobs.find(j => j.id === id)
-        if (job) {
-            jobsMap.set(id, job)
-        }
+    if (ids.length === 0) {
+        return new Map()
     }
+    
+    // 並列で各求人を取得（キャッシュが効くため効率的）
+    const jobPromises = ids.map(id => getJob(id))
+    const jobs = await Promise.all(jobPromises)
+    
+    const jobsMap = new Map<string, Job>()
+    jobs.forEach((job, index) => {
+        if (job) {
+            jobsMap.set(ids[index], job)
+        }
+    })
     
     return jobsMap
 }

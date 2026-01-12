@@ -197,7 +197,7 @@ export async function getJobsAll() {
       getJobsData,
       [cacheKey],
       {
-        revalidate: 30, // 30秒キャッシュ
+        revalidate: 300, // 5分キャッシュ（手動更新ボタンで対応）
         tags: [CACHE_TAGS.JOBS],
       }
     )()
@@ -242,7 +242,7 @@ export async function getJob(id: string) {
       getJobData,
       [cacheKey],
       {
-        revalidate: 30, // 30秒キャッシュ
+        revalidate: 600, // 10分キャッシュ
         tags: [CACHE_TAGS.JOBS, `job:${id}`],
       }
     )()

@@ -22,80 +22,85 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   const [jobId, setJobId] = useState<string>('')
   const [job, setJob] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [applicantsLoading, setApplicantsLoading] = useState(false)
-  const [friendsLoading, setFriendsLoading] = useState(false)
   const [applicationSubmitted, setApplicationSubmitted] = useState(false)
   const [applicants, setApplicants] = useState<ApplicantView[]>([])
   const [friends, setFriends] = useState<Friend[]>([])
 
   useEffect(() => {
+    let isMounted = true // クリーンアップ用フラグ
+    let hasRun = false // 重複実行を防ぐフラグ
+    
     const loadData = async () => {
+      if (hasRun || !isMounted) return // 既に実行済みまたはアンマウント済みなら中断
+      hasRun = true
+      
       const resolvedParams = await params
       const id = resolvedParams.id
+      
+      if (!isMounted) return // アンマウント済みなら中断
+      
       setJobId(id)
       
-      try {
-        const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
-        const jobCacheKey = createCacheKey('job', id)
-        const cachedJob = clientCache.get<any>(jobCacheKey)
-        
-        if (cachedJob) {
-          setJob(cachedJob)
-        } else {
-          const jobData = await getJob(id)
+      const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
+      const jobCacheKey = createCacheKey('job', id)
+      const cachedJob = clientCache.get<any>(jobCacheKey)
+      
+      // 求人データ取得（クライアントキャッシュを優先）
+      if (cachedJob) {
+        if (isMounted) setJob(cachedJob)
+      } else {
+        const jobData = await getJob(id)
+        if (isMounted) {
           setJob(jobData)
           if (jobData) {
-            clientCache.set(jobCacheKey, jobData, 5 * 60 * 1000)
+            clientCache.set(jobCacheKey, jobData, 10 * 60 * 1000)
           }
         }
+      }
 
-        const user = getCurrentUserFromAuth0()
-        if (!user) {
-          setLoading(false)
-          return
-        }
+      const user = getCurrentUserFromAuth0()
+      if (!user) {
+        if (isMounted) setLoading(false)
+        return
+      }
 
-        setApplicantsLoading(true)
-        const applicantsList = await getJobApplicantsForUser(id)
+      // 応募者リストと友達リストを並列取得
+      const [applicantsList, friendList] = await Promise.all([
+        getJobApplicantsForUser(id),
+        getFriends()
+      ])
+      
+      if (isMounted) {
         setApplicants(applicantsList)
-
-        setFriendsLoading(true)
-        const friendList = await getFriends()
         setFriends(friendList)
-      } catch (error) {
-        console.error('Error loading data:', error)
-      } finally {
-        setApplicantsLoading(false)
-        setFriendsLoading(false)
         setLoading(false)
       }
     }
 
     loadData()
-  }, [params])
+    
+    // クリーンアップ関数
+    return () => {
+      isMounted = false
+    }
+  }, [params]) // paramsを依存配列に追加して、パラメータ変更時に再実行
 
   const handleSendRecommend = async (friend: Friend) => {
     if (!job) return
-    try {
-      await createNotification({
-        userId: friend.userId || '',
-        type: 'application_invitation',
-        jobId: job.id,
-        jobTitle: job.title || '',
-        fromUserName: 'あなたの友達',
-        message: `${job.title || 'この求人'}をチェックしてみて！`,
-      })
-      toast({
-        title: '紹介を送信しました',
-        description: `${friend.name} に求人を共有しました`,
-      })
-    } catch (error) {
-      toast({
-        title: '送信に失敗しました',
-        description: '時間をおいて再度お試しください',
-        variant: 'destructive',
-      })
-    }
+    
+    await createNotification({
+      userId: friend.userId || '',
+      type: 'application_invitation',
+      jobId: job.id,
+      jobTitle: job.title || '',
+      fromUserName: 'あなたの友達',
+      message: `${job.title || 'この求人'}をチェックしてみて！`,
+    })
+    
+    toast({
+      title: '紹介を送信しました',
+      description: `${friend.name} に求人を共有しました`,
+    })
   }
 
   if (loading) {
@@ -204,16 +209,14 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
                   <div>
                     <p className="text-sm text-gray-600">友達の応募状況</p>
                     <p className="text-base font-semibold text-gray-800">
-                      {applicantsLoading ? '読み込み中...' : `${applicants.filter((a) => a.isFriend).length}人の友達が応募中`}
+                      {`${applicants.filter((a) => a.isFriend).length}人の友達が応募中`}
                     </p>
                   </div>
                   <Badge variant="outline" className="text-xs">
                     個人応募 + 友達の状況を確認
                   </Badge>
                 </div>
-                {applicantsLoading ? (
-                  <p className="text-sm text-gray-500">応募者を取得しています...</p>
-                ) : applicants.length === 0 ? (
+                {applicants.length === 0 ? (
                   <p className="text-sm text-gray-500">まだ応募者はいません。最初に応募して友達に共有しましょう。</p>
                 ) : (
                   <div className="space-y-3">
@@ -227,7 +230,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
                   <div>
                     <p className="text-sm text-gray-600">友達に紹介する</p>
                     <p className="text-base font-semibold text-gray-800">
-                      {friendsLoading ? '読み込み中...' : `${friends.length}人の友達`}
+                      {`${friends.length}人の友達`}
                     </p>
                   </div>
                   <Badge variant="secondary" className="text-xs flex items-center gap-1">
@@ -235,9 +238,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
                     紹介通知
                   </Badge>
                 </div>
-                {friendsLoading ? (
-                  <p className="text-sm text-gray-500">友達リストを取得しています...</p>
-                ) : friends.length === 0 ? (
+                {friends.length === 0 ? (
                   <p className="text-sm text-gray-500">友達リストが空です。先に友達を追加してください。</p>
                 ) : (
                   <div className="space-y-3">
@@ -268,11 +269,20 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
               <IndividualApplicationForm
                 jobId={jobId}
                 jobTitle={job?.title || ''}
-                onSuccess={() => {
+                onSuccess={async () => {
                   setApplicationSubmitted(true)
+                  
+                  // 応募者リストを再読み込み
+                  try {
+                    const updatedApplicants = await getJobApplicantsForUser(jobId)
+                    setApplicants(updatedApplicants)
+                  } catch (error) {
+                    // エラーは無視（リダイレクトするため）
+                  }
+                  
                   setTimeout(() => {
-                    router.push('/jobs')
-                  }, 3000)
+                    router.push('/applications')
+                  }, 2000)
                 }}
               />
             </>

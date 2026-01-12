@@ -18,7 +18,7 @@ export function JobCard({ job }: JobCardProps) {
 
   return (
     <div className="bg-white rounded-lg shadow-md hover:shadow-xl transition-shadow p-6 border border-gray-200">
-      <Link href={`/jobs/${job.id}`} className="block mb-4">
+      <Link href={`/jobs/${job.id}`} className="block mb-4" prefetch={false}>
         {/* カテゴリバッジ */}
         <div className="mb-3">
           <CategoryBadge 
@@ -97,15 +97,6 @@ export function JobCard({ job }: JobCardProps) {
           </div>
         </div>
       </Link>
-      
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <Link href={`/jobs/${job.id}`}>
-          <Button className="w-full bg-blue-600 text-white hover:bg-blue-700 flex items-center justify-center gap-2">
-            詳細を見る
-            <ChevronRight size={18} />
-          </Button>
-        </Link>
-      </div>
     </div>
   )
 }
