@@ -7,27 +7,45 @@ import { CACHE_TAGS } from '@/lib/cache/server-cache'
 import { randomUUID } from 'crypto'
 import { handleServerActionError, handleDataFetchError } from '@/lib/utils/error-handler'
 import { transformJobToAppFormat, transformJobToEmployerFormat } from '@/lib/utils/prisma-transformers'
+import { JobCategory, CompensationType } from '@/types/job'
+import { deleteJobAttachment } from './uploads'
 
 /**
  * 求人作成の入力データ型
  */
 export type CreateJobInput = {
+  // 共通項目
+  category: JobCategory
   title: string
+  summary: string
   companyName: string
-  dates: string[] // 日付の配列（ISO文字列形式）
-  workHours: string
-  hourlyWage: number // 時給
   location: string
   recruitmentCount: number
   jobContent: string
   requirements?: string
-  applicationDeadline?: string // ISO文字列形式
+  applicationDeadline?: string
   notes?: string
+  
+  // 報酬関連
+  compensationType: CompensationType
+  compensationAmount?: number
   transportFee?: number
+  
+  // 日時関連（カテゴリによって使い分け）
+  dates?: string[]        // 単発バイト/ボランティア用（複数日）
+  startDate?: string      // 長期/インターン用
+  endDate?: string        // 長期/インターン用
+  workHours: string
+  isFlexibleSchedule?: boolean
+  
+  // 外部リンク・添付ファイル
+  externalUrl?: string
+  externalUrlTitle?: string
+  attachmentUrls?: string[]
 }
 
 /**
- * 求人を作成（複数日付の場合は各日付ごとにJobレコードを作成）
+ * 求人を作成
  * 認証必須（求人作成者のみ）
  */
 export async function createJob(input: CreateJobInput) {
@@ -35,41 +53,98 @@ export async function createJob(input: CreateJobInput) {
     // 求人作成者認証必須
     const employer = await requireEmployerAuth()
 
-    // 日付が空の場合はエラー
-    if (!input.dates || input.dates.length === 0) {
-      throw new Error('少なくとも1つの日付を選択してください')
-    }
+    // カテゴリに応じて日付処理を分岐
+    let jobs: any[] = []
 
-    // 各日付ごとにJobレコードを作成
-    const jobs = await Promise.all(
-      input.dates.map(async (dateStr) => {
-        const jobDate = new Date(dateStr)
-        // 日付のみを使用（時刻は00:00:00に設定）
-        jobDate.setHours(0, 0, 0, 0)
+    // 添付ファイルURLをJSON文字列に変換
+    const attachmentUrlsJson = input.attachmentUrls && input.attachmentUrls.length > 0
+      ? JSON.stringify(input.attachmentUrls)
+      : null
 
-        const job = await prisma.job.create({
-          data: {
-            id: randomUUID(),
-            title: input.title,
-            description: input.jobContent,
-            location: input.location,
-            wageAmount: input.hourlyWage,
-            transportFee: input.transportFee || 0,
-            jobDate: jobDate,
-            companyName: input.companyName,
-            workHours: input.workHours,
-            recruitmentCount: input.recruitmentCount,
-            jobContent: input.jobContent,
-            requirements: input.requirements || null,
-            applicationDeadline: input.applicationDeadline ? new Date(input.applicationDeadline) : null,
-            notes: input.notes || null,
-            employerId: employer.id,
-          },
+    if (input.category === JobCategory.ONE_TIME_JOB || input.category === JobCategory.VOLUNTEER) {
+      // 単発バイト/ボランティア：複数日付対応
+      if (!input.dates || input.dates.length === 0) {
+        throw new Error('少なくとも1つの日付を選択してください')
+      }
+
+      jobs = await Promise.all(
+        input.dates.map(async (dateStr) => {
+          const jobDate = new Date(dateStr)
+          jobDate.setHours(0, 0, 0, 0)
+
+          return await prisma.job.create({
+            data: {
+              id: randomUUID(),
+              category: input.category,
+              title: input.title,
+              summary: input.summary,
+              description: input.jobContent,
+              location: input.location,
+              compensationType: input.compensationType,
+              compensationAmount: input.compensationAmount || null,
+              wageAmount: input.compensationAmount || null, // 後方互換性
+              transportFee: input.transportFee || 0,
+              jobDate: jobDate,
+              companyName: input.companyName,
+              workHours: input.workHours,
+              recruitmentCount: input.recruitmentCount,
+              jobContent: input.jobContent,
+              requirements: input.requirements || null,
+              applicationDeadline: input.applicationDeadline ? new Date(input.applicationDeadline) : null,
+              notes: input.notes || null,
+              externalUrl: input.externalUrl || null,
+              externalUrlTitle: input.externalUrlTitle || null,
+              attachmentUrls: attachmentUrlsJson,
+              employerId: employer.id,
+            },
+          })
         })
+      )
+    } else {
+      // 中長期アルバイト/インターンシップ：開始日・終了日
+      if (!input.startDate) {
+        throw new Error('勤務開始日を入力してください')
+      }
 
-        return job
+      const startDate = new Date(input.startDate)
+      startDate.setHours(0, 0, 0, 0)
+
+      const endDate = input.endDate ? new Date(input.endDate) : null
+      if (endDate) {
+        endDate.setHours(0, 0, 0, 0)
+      }
+
+      const job = await prisma.job.create({
+        data: {
+          id: randomUUID(),
+          category: input.category,
+          title: input.title,
+          summary: input.summary,
+          description: input.jobContent,
+          location: input.location,
+          compensationType: input.compensationType,
+          compensationAmount: input.compensationAmount || null,
+          wageAmount: input.compensationAmount || null, // 後方互換性
+          transportFee: input.transportFee || 0,
+          startDate: startDate,
+          endDate: endDate,
+          isFlexibleSchedule: input.isFlexibleSchedule || false,
+          companyName: input.companyName,
+          workHours: input.workHours,
+          recruitmentCount: input.recruitmentCount,
+          jobContent: input.jobContent,
+          requirements: input.requirements || null,
+          applicationDeadline: input.applicationDeadline ? new Date(input.applicationDeadline) : null,
+          notes: input.notes || null,
+          externalUrl: input.externalUrl || null,
+          externalUrlTitle: input.externalUrlTitle || null,
+          attachmentUrls: attachmentUrlsJson,
+          employerId: employer.id,
+        },
       })
-    )
+
+      jobs = [job]
+    }
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
@@ -80,7 +155,9 @@ export async function createJob(input: CreateJobInput) {
       jobs: jobs.map((job) => ({
         id: job.id,
         title: job.title,
+        category: job.category,
         jobDate: job.jobDate?.toISOString(),
+        startDate: job.startDate?.toISOString(),
       })),
     }
   } catch (error) {
@@ -209,18 +286,34 @@ export async function getEmployerJobs() {
  * 求人更新の入力データ型
  */
 export type UpdateJobInput = {
+  // 共通項目
+  category: JobCategory
   title: string
+  summary: string
   companyName: string
-  date: string // ISO文字列形式
-  workHours: string
-  hourlyWage: number
   location: string
   recruitmentCount: number
   jobContent: string
   requirements?: string
   applicationDeadline?: string
   notes?: string
+  
+  // 報酬関連
+  compensationType: CompensationType
+  compensationAmount?: number
   transportFee?: number
+  
+  // 日時関連（カテゴリによって使い分け）
+  date?: string           // 単発バイト/ボランティア用（単一日）
+  startDate?: string      // 長期/インターン用
+  endDate?: string        // 長期/インターン用
+  workHours: string
+  isFlexibleSchedule?: boolean
+  
+  // 外部リンク・添付ファイル
+  externalUrl?: string
+  externalUrlTitle?: string
+  attachmentUrls?: string[]
 }
 
 /**
@@ -245,18 +338,48 @@ export async function updateJob(jobId: string, input: UpdateJobInput) {
       throw new Error('編集権限がありません')
     }
 
-    const jobDate = new Date(input.date)
-    jobDate.setHours(0, 0, 0, 0)
+    // 添付ファイルURLをJSON文字列に変換
+    const attachmentUrlsJson = input.attachmentUrls && input.attachmentUrls.length > 0
+      ? JSON.stringify(input.attachmentUrls)
+      : null
+
+    // カテゴリに応じて日付を設定
+    let jobDate: Date | null = null
+    let startDate: Date | null = null
+    let endDate: Date | null = null
+
+    if (input.category === JobCategory.ONE_TIME_JOB || input.category === JobCategory.VOLUNTEER) {
+      if (input.date) {
+        jobDate = new Date(input.date)
+        jobDate.setHours(0, 0, 0, 0)
+      }
+    } else {
+      if (input.startDate) {
+        startDate = new Date(input.startDate)
+        startDate.setHours(0, 0, 0, 0)
+      }
+      if (input.endDate) {
+        endDate = new Date(input.endDate)
+        endDate.setHours(0, 0, 0, 0)
+      }
+    }
 
     const updatedJob = await prisma.job.update({
       where: { id: jobId },
       data: {
+        category: input.category,
         title: input.title,
+        summary: input.summary,
         description: input.jobContent,
         location: input.location,
-        wageAmount: input.hourlyWage,
+        compensationType: input.compensationType,
+        compensationAmount: input.compensationAmount || null,
+        wageAmount: input.compensationAmount || null, // 後方互換性
         transportFee: input.transportFee || 0,
         jobDate: jobDate,
+        startDate: startDate,
+        endDate: endDate,
+        isFlexibleSchedule: input.isFlexibleSchedule || false,
         companyName: input.companyName,
         workHours: input.workHours,
         recruitmentCount: input.recruitmentCount,
@@ -264,6 +387,9 @@ export async function updateJob(jobId: string, input: UpdateJobInput) {
         requirements: input.requirements || null,
         applicationDeadline: input.applicationDeadline ? new Date(input.applicationDeadline) : null,
         notes: input.notes || null,
+        externalUrl: input.externalUrl || null,
+        externalUrlTitle: input.externalUrlTitle || null,
+        attachmentUrls: attachmentUrlsJson,
       },
     })
 
@@ -277,6 +403,7 @@ export async function updateJob(jobId: string, input: UpdateJobInput) {
       job: {
         id: updatedJob.id,
         title: updatedJob.title,
+        category: updatedJob.category,
       },
     }
   } catch (error) {
@@ -308,6 +435,19 @@ export async function deleteJob(jobId: string) {
     // 自分の求人のみ削除可能
     if (job.employerId !== employer.id) {
       throw new Error('削除権限がありません')
+    }
+
+    // 添付ファイルを削除
+    if (job.attachmentUrls) {
+      try {
+        const attachmentUrls = JSON.parse(job.attachmentUrls) as string[]
+        await Promise.allSettled(
+          attachmentUrls.map((url) => deleteJobAttachment(url))
+        )
+      } catch (e) {
+        console.error('Failed to delete attachments:', e)
+        // 添付ファイル削除に失敗しても求人削除は続行
+      }
     }
 
     await prisma.job.delete({
