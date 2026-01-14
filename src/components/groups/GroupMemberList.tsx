@@ -20,16 +20,36 @@ export function GroupMemberList({ group, onGroupUpdate }: GroupMemberListProps) 
   const currentUserId = currentUser?.id
 
   const handleStatusChange = async (memberId: string, status: ApplicationParticipationStatus) => {
-    // グループ情報を再取得して表示を更新
-    const updatedGroup = await getGroup(group.id)
-    if (updatedGroup) {
-      onGroupUpdate?.(updatedGroup)
+    try {
+      // 応募参加ステータスを更新
+      const { updateGroupMemberApplicationStatus } = await import('@/lib/actions/groups')
+      const success = await updateGroupMemberApplicationStatus(group.id, memberId, status)
+      
+      if (success) {
+        // グループ情報を再取得して表示を更新
+        const updatedGroup = await getGroup(group.id)
+        if (updatedGroup) {
+          onGroupUpdate?.(updatedGroup)
+        }
+        
+        toast({
+          title: '更新しました',
+          description: status === 'participating' ? '応募に参加します' : '応募に参加しません',
+        })
+      } else {
+        toast({
+          title: 'エラー',
+          description: '応募参加ステータスの更新に失敗しました',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'エラー',
+        description: '応募参加ステータスの更新に失敗しました',
+        variant: 'destructive',
+      })
     }
-    
-    toast({
-      title: '更新しました',
-      description: status === 'participating' ? '応募に参加します' : '応募に参加しません',
-    })
   }
 
   return (

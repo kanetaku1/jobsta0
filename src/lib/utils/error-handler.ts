@@ -13,6 +13,7 @@ export type ErrorContext =
   | 'notification'
   | 'auth'
   | 'user'
+  | 'upload'
   | 'batch'
   | 'unknown'
 

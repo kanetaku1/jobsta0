@@ -84,7 +84,7 @@ export function GroupCreateModal({ isOpen, onClose, onGroupCreated, jobId }: Gro
     const selectedFriends = friends.filter(f => selectedFriendIds.includes(f.id))
     const allMembers = selectedFriends.map(f => ({
       name: f.name,
-      userId: f.id, // 友達のIDを設定
+      userId: f.userId, // UserテーブルのIDを使用（存在しない場合はundefined）
     }))
 
     // メンバーは0人でもOK（グループ招待リンクから後で参加できる）

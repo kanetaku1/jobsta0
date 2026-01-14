@@ -31,6 +31,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   const [applicationType, setApplicationType] = useState<'individual' | 'group'>('group') // 個人 or グループ応募
   const [applicationSubmitted, setApplicationSubmitted] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteModalGroup, setInviteModalGroup] = useState<Group | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -104,16 +105,16 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
     if (!user) return
     
     // 求人ごとのグループを再取得
+    // getGroupsは既に認証されたユーザーのグループのみを返すため、追加のフィルタリングは不要
     const jobGroups = await getGroups(jobId)
-    const userGroups = jobGroups.filter(g => g.ownerUserId === user.id)
-    setGroups(userGroups)
+    setGroups(jobGroups)
     setSelectedGroupId(newGroup.id)
     setIsCreateModalOpen(false)
     
     // キャッシュを更新
     const { clientCache, createCacheKey } = await import('@/lib/cache/client-cache')
     const groupsCacheKey = createCacheKey('groups', jobId, user.id)
-    clientCache.set(groupsCacheKey, userGroups, 30000)
+    clientCache.set(groupsCacheKey, jobGroups, 30000)
   }
 
   const handleSubmitApplication = async () => {
@@ -330,7 +331,25 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => setShowInviteModal(true)}
+                          onClick={async () => {
+                            // selectedGroupが存在しない場合は、getGroupで取得
+                            if (!selectedGroup && selectedGroupId) {
+                              const group = await getGroup(selectedGroupId)
+                              if (group) {
+                                setInviteModalGroup(group)
+                                setShowInviteModal(true)
+                              } else {
+                                toast({
+                                  title: 'エラー',
+                                  description: 'グループが見つかりません',
+                                  variant: 'destructive',
+                                })
+                              }
+                            } else {
+                              setInviteModalGroup(selectedGroup || null)
+                              setShowInviteModal(true)
+                            }
+                          }}
                           className="flex items-center gap-2"
                         >
                           <Share2 size={16} />
@@ -407,11 +426,14 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
           />
 
           {/* グループ招待リンク表示モーダル */}
-          {selectedGroup && (
+          {inviteModalGroup && (
             <GroupInviteLinkModal
               isOpen={showInviteModal}
-              onClose={() => setShowInviteModal(false)}
-              group={selectedGroup}
+              onClose={() => {
+                setShowInviteModal(false)
+                setInviteModalGroup(null)
+              }}
+              group={inviteModalGroup}
             />
           )}
         </div>

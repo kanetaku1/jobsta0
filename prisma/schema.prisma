@@ -47,17 +47,18 @@ enum UserRole {
 
 // ==================== グループ ====================
 model Group {
-  id          String   @id @default(uuid())
-  ownerId     String
-  ownerName   String   // グループ作成者の名前
-  jobId       String?  // 求人ID（求人ごとにグループを作成）
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(uuid())
+  ownerId       String
+  ownerName     String   // グループ作成者の名前
+  jobId         String?  // 求人ID（求人ごとにグループを作成）
+  requiredCount Int?     // 希望者数（応募に必要な人数）
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // リレーション
-  owner       User         @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members     GroupMember[]
-  applications Application[]
+  owner         User         @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members       GroupMember[]
+  applications  Application[]
 
   @@index([ownerId])
   @@index([jobId])
@@ -66,19 +67,20 @@ model Group {
 
 // ==================== グループメンバー ====================
 model GroupMember {
-  id         String            @id @default(uuid())
-  groupId    String
-  userId     String?           // ユーザーID（ログイン済みの場合）
-  name       String            // メンバー名
-  lineId     String?           // LINE ID
-  inviteLink String?           // 招待リンク
-  status     GroupMemberStatus @default(PENDING)
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
+  id               String                    @id @default(uuid())
+  groupId          String
+  userId           String?                   // ユーザーID（ログイン済みの場合）
+  name             String                    // メンバー名
+  lineId           String?                   // LINE ID
+  inviteLink       String?                   // 招待リンク
+  status           GroupMemberStatus         @default(PENDING)
+  applicationStatus ApplicationParticipationStatus? // 応募への参加状況
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
 
   // リレーション
-  group      Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  user       User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  group            Group                     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user             User?                     @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([groupId])
   @@index([userId])
@@ -91,32 +93,74 @@ enum GroupMemberStatus {
   REJECTED
 }
 
+enum ApplicationParticipationStatus {
+  PARTICIPATING
+  NOT_PARTICIPATING
+  PENDING
+}
+
+// ==================== 求人カテゴリ ====================
+enum JobCategory {
+  ONE_TIME_JOB  // 単発バイト
+  PART_TIME     // 中長期アルバイト
+  INTERNSHIP    // インターンシップ
+  VOLUNTEER     // ボランティア
+}
+
+// ==================== 報酬形式 ====================
+enum CompensationType {
+  HOURLY    // 時給
+  DAILY     // 日給
+  MONTHLY   // 月給
+  FIXED     // 固定報酬
+  NONE      // 無給
+}
+
 // ==================== 求人 ====================
 model Job {
-  id                  String    @id @default(uuid())
+  id                  String            @id @default(uuid())
+  category            JobCategory       @default(ONE_TIME_JOB) // 求人カテゴリ
   title               String?
+  summary             String?           // サマリー（100〜200文字、必須）
   description         String?
   location            String?
-  wageAmount          Int?       // 時給（円）
-  transportFee        Int?       // 交通費（円）
-  jobDate             DateTime?  // シフト日時
+  
+  // 報酬関連（新フィールド）
+  compensationType    CompensationType  @default(HOURLY) // 報酬形式
+  compensationAmount  Int?              // 報酬額
+  wageAmount          Int?              // 時給（円）- 後方互換性のため残す
+  transportFee        Int?              // 交通費（円）
+  
+  // 日時関連
+  jobDate             DateTime?         // シフト日時（単発バイト用）
+  startDate           DateTime?         // 勤務開始日（長期/インターン用）
+  endDate             DateTime?         // 勤務終了日（長期/インターン用）
+  isFlexibleSchedule  Boolean?          // シフト柔軟性フラグ
+  
+  // 外部リンク・添付ファイル
+  externalUrl         String?           // 外部求人ページURL
+  externalUrlTitle    String?           // 外部URLのタイトル
+  attachmentUrls      String?           // 添付ファイルURL（JSON配列形式）
+  
   companyId           String?
-  companyName         String?    // 会社名・店舗名
-  workHours           String?    // 勤務時間（例：9:00～18:00 (昼60分休憩)）
-  recruitmentCount    Int?       // 募集人数
-  jobContent          String?    // 業務内容
-  requirements        String?    // 応募資格・条件
-  applicationDeadline DateTime?  // 応募締め切り
-  notes               String?    // 備考
-  employerId          String     // 求人作成者ID（必須）
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  companyName         String?           // 会社名・店舗名
+  workHours           String?           // 勤務時間（例：9:00～18:00 (昼60分休憩)）
+  recruitmentCount    Int?              // 募集人数
+  jobContent          String?           // 業務内容
+  requirements        String?           // 応募資格・条件
+  applicationDeadline DateTime?         // 応募締め切り
+  notes               String?           // 備考
+  employerId          String            // 求人作成者ID（必須）
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   // リレーション
   applications  Application[]
   employer      User          @relation("JobEmployer", fields: [employerId], references: [id], onDelete: Cascade)
 
+  @@index([category])
   @@index([jobDate])
+  @@index([startDate])
   @@index([employerId])
   @@index([applicationDeadline])
   @@map("jobs")

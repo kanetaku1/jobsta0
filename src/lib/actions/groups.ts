@@ -11,6 +11,7 @@ import { transformGroupToAppFormat, transformGroupMemberStatus } from '@/lib/uti
 
 /**
  * ユーザーのグループ一覧を取得（キャッシュ付き）
+ * 自分が作成したグループと、メンバーとして参加しているグループの両方を取得
  */
 export async function getGroups(jobId?: string): Promise<Group[]> {
   try {
@@ -19,9 +20,22 @@ export async function getGroups(jobId?: string): Promise<Group[]> {
     const cacheKey = `groups:${user.id}:${jobId || 'all'}`
     
     const getGroupsData = async () => {
-      const where: { ownerId: string; jobId?: string } = { ownerId: user.id }
+      // 自分が作成したグループと、メンバーとして参加しているグループの両方を取得
+      const where: { 
+        OR: Array<{ ownerId: string; jobId?: string } | { members: { some: { userId: string } }; jobId?: string }>
+      } = {
+        OR: [
+          { ownerId: user.id },
+          { members: { some: { userId: user.id } } }
+        ]
+      }
+      
+      // jobIdが指定されている場合は、両方の条件にjobIdを追加
       if (jobId) {
-        where.jobId = jobId
+        where.OR = [
+          { ownerId: user.id, jobId },
+          { members: { some: { userId: user.id } }, jobId }
+        ]
       }
 
       const groups = await prisma.group.findMany({
@@ -327,3 +341,70 @@ export async function addMemberToGroup(
   }
 }
 
+/**
+ * グループメンバーの応募参加ステータスを更新
+ */
+export async function updateGroupMemberApplicationStatus(
+  groupId: string,
+  memberId: string,
+  applicationStatus: 'participating' | 'not_participating' | 'pending'
+): Promise<boolean> {
+  try {
+    const user = await requireAuth()
+
+    // メンバーが存在し、現在のユーザーがそのメンバーであることを確認
+    const member = await prisma.groupMember.findUnique({
+      where: { id: memberId },
+      include: {
+        group: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    })
+
+    if (!member) {
+      throw new Error('メンバーが見つかりません')
+    }
+
+    if (member.groupId !== groupId) {
+      throw new Error('グループIDが一致しません')
+    }
+
+    // 自分自身のステータスのみ更新可能
+    if (member.userId !== user.id) {
+      throw new Error('自分のステータスのみ更新できます')
+    }
+
+    // グループ参加が承認されていない場合は更新不可
+    if (member.status !== 'APPROVED') {
+      throw new Error('グループ参加が承認されていないため、応募参加ステータスを更新できません')
+    }
+
+    // ステータスを変換
+    const prismaStatus = applicationStatus.toUpperCase() as 'PARTICIPATING' | 'NOT_PARTICIPATING' | 'PENDING'
+
+    await prisma.groupMember.update({
+      where: { id: memberId },
+      data: {
+        applicationStatus: prismaStatus,
+      },
+    })
+
+    // キャッシュを無効化
+    const { revalidateTag } = await import('next/cache')
+    revalidateTag(CACHE_TAGS.GROUPS)
+    revalidateTag(`${CACHE_TAGS.GROUPS}:${user.id}`)
+    revalidateTag(`group:${groupId}`)
+
+    return true
+  } catch (error) {
+    handleError(error, {
+      context: 'group',
+      operation: 'updateGroupMemberApplicationStatus',
+      defaultErrorMessage: '応募参加ステータスの更新に失敗しました',
+    })
+    return false
+  }
+}

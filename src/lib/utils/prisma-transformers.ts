@@ -10,12 +10,22 @@ import type { Job, User, Group, GroupMember, Application, Notification } from '@
  */
 export function transformJobToAppFormat(job: Job): {
   id: string
+  category: string
   title: string | null
+  summary: string | null
   description: string | null
   location: string | null
+  compensation_type: string
+  compensation_amount: number | null
   wage_amount: number | null
   transport_fee: number | null
   job_date: string | null
+  start_date: string | null
+  end_date: string | null
+  is_flexible_schedule: boolean | null
+  external_url: string | null
+  external_url_title: string | null
+  attachment_urls: string | null
   company_id: string | null
   company_name: string | null
   work_hours: string | null
@@ -29,12 +39,22 @@ export function transformJobToAppFormat(job: Job): {
 } {
   return {
     id: job.id,
+    category: job.category,
     title: job.title,
+    summary: job.summary,
     description: job.description,
     location: job.location,
+    compensation_type: job.compensationType,
+    compensation_amount: job.compensationAmount,
     wage_amount: job.wageAmount,
     transport_fee: job.transportFee,
     job_date: job.jobDate?.toISOString() || null,
+    start_date: job.startDate?.toISOString() || null,
+    end_date: job.endDate?.toISOString() || null,
+    is_flexible_schedule: job.isFlexibleSchedule,
+    external_url: job.externalUrl,
+    external_url_title: job.externalUrlTitle,
+    attachment_urls: job.attachmentUrls,
     company_id: job.companyId,
     company_name: job.companyName,
     work_hours: job.workHours,
@@ -53,19 +73,23 @@ export function transformJobToAppFormat(job: Job): {
  */
 export function transformJobToEmployerFormat(job: Job & { _count?: { applications: number } }): {
   id: string
+  category: string
   title: string | null
   company_name: string | null
   location: string | null
   job_date: string | null
+  start_date: string | null
   application_count: number
   created_at: string
 } {
   return {
     id: job.id,
+    category: job.category,
     title: job.title,
     company_name: job.companyName,
     location: job.location,
     job_date: job.jobDate?.toISOString() || null,
+    start_date: job.startDate?.toISOString() || null,
     application_count: job._count?.applications || 0,
     created_at: job.createdAt.toISOString(),
   }
@@ -102,9 +126,12 @@ export function transformGroupToAppFormat(
       id: m.id,
       name: m.name,
       status: m.status.toLowerCase() as 'pending' | 'approved' | 'rejected',
+      applicationStatus: m.applicationStatus 
+        ? (m.applicationStatus.toLowerCase() as 'participating' | 'not_participating' | 'pending')
+        : undefined,
       userId: m.userId || undefined,
     })),
-    requiredCount: group.members.length,
+    requiredCount: group.requiredCount || group.members.length,
     groupInviteLink: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/invite/group/${group.id}`,
     createdAt: group.createdAt.toISOString(),
     updatedAt: group.updatedAt.toISOString(),

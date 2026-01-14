@@ -6,9 +6,8 @@ import Link from 'next/link'
 import { CheckCircle, ArrowLeft, User } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
-import { getFriends, addFriend } from '@/lib/actions/friends'
+import { getFriends, addFriendByUserId, getUserBySupabaseId } from '@/lib/actions/friends'
 import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
-import type { Friend } from '@/types/application'
 
 export default function FriendInvitePage() {
   const router = useRouter()
@@ -40,24 +39,34 @@ export default function FriendInvitePage() {
 
       // 既に友達リストに追加されているか確認
       const friends = await getFriends()
-      const existingFriend = friends.find(f => f.id === fromId)
+      // fromIdはsupabaseIdなので、friendUserIdと比較する必要がある
+      // まず、招待者のユーザー情報を取得して、そのIDで確認
+      const inviterUser = await getUserBySupabaseId(fromId)
       
-      if (existingFriend) {
-        setAdded(true)
-        setInviterName(existingFriend.name)
+      if (inviterUser) {
+        const existingFriend = friends.find(f => f.id === inviterUser.id)
+        
+        if (existingFriend) {
+          setAdded(true)
+          setInviterName(existingFriend.name)
+          setLoading(false)
+          return
+        }
+      }
+
+      // 招待者の情報を取得
+      if (!inviterUser) {
+        toast({
+          title: 'エラー',
+          description: '招待者の情報が見つかりませんでした',
+          variant: 'destructive',
+        })
         setLoading(false)
         return
       }
 
-      // 招待者の情報を取得（名前を取得する方法を実装）
-      // 現在はユーザーIDから名前を取得できないため、デフォルト名を使用
-      const inviterDisplayName = '友達'
-      
-      // 被招待者の友達リストに招待者を追加
-      const result = await addFriend({
-        name: inviterDisplayName,
-        email: undefined,
-      })
+      // 双方向の友達関係を作成
+      const result = await addFriendByUserId(fromId)
       
       if (result) {
         setAdded(true)

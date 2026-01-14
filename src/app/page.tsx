@@ -17,6 +17,5 @@ export default async function HomePage() {
   }
   
   // 雇用主でない場合、求職者向けページを表示
-  // 認証済みの場合は求職者向け機能を表示
   return <JobSeekerHomePage />
 }

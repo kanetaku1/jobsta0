@@ -1,21 +1,44 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
-import { requireEmployerAuth } from '@/lib/auth/employer-auth'
-import { getEmployerJobs } from '@/lib/actions/jobs'
-import { signOutEmployer } from '@/lib/auth/employer-auth'
+import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CategoryBadge } from '@/components/jobs/CategoryBadge'
 import { JobCategory } from '@/types/job'
+import { getEmployerJobs } from '@/lib/actions/jobs'
+import { signOutEmployer } from '@/lib/auth/employer-auth'
 
-export default async function EmployerJobsPage() {
-  let employer
-  try {
-    employer = await requireEmployerAuth()
-  } catch (error) {
-    redirect('/employer/login')
+type EmployerJob = {
+  id: string
+  category: string
+  title: string | null
+  company_name: string | null
+  location: string | null
+  job_date: string | null
+  start_date: string | null
+  application_count: number
+  created_at: string
+}
+
+type EmployerJobsPageClientProps = {
+  employer: { name?: string | null; email?: string | null }
+  initialJobs: EmployerJob[]
+}
+
+export function EmployerJobsPageClient({ employer, initialJobs }: EmployerJobsPageClientProps) {
+  const [jobs, setJobs] = useState<EmployerJob[]>(initialJobs)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      const freshJobs = await getEmployerJobs()
+      setJobs(freshJobs)
+    } finally {
+      setIsRefreshing(false)
+    }
   }
-
-  const jobs = await getEmployerJobs()
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -23,6 +46,15 @@ export default async function EmployerJobsPage() {
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold text-gray-800">求人管理</h1>
           <div className="flex gap-4">
+            <Button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+              {isRefreshing ? '更新中...' : '更新'}
+            </Button>
             <Link href="/employer/jobs/create">
               <Button className="bg-blue-600 text-white hover:bg-blue-700">
                 新規求人作成
@@ -107,4 +139,3 @@ export default async function EmployerJobsPage() {
     </div>
   )
 }
-
