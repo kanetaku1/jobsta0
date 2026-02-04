@@ -5,13 +5,10 @@ import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { NotificationDropdown } from '@/components/notifications/NotificationDropdown'
-import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getCurrentUserFromSession } from '@/lib/auth/session-utils'
 
-/**
- * Auth0のIDトークンからユーザー情報を取得（後方互換性のためのラッパー）
- */
 function getUserFromToken() {
-  const user = getCurrentUserFromAuth0()
+  const user = getCurrentUserFromSession()
   if (!user) {
     return null
   }
@@ -58,12 +55,26 @@ export function Header() {
   }, []) // 初回のみ実行
 
   const handleLogout = async () => {
-    // Auth0のトークンをクッキーから削除
-    if (typeof window !== 'undefined') {
-      document.cookie = 'auth0_id_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
-      document.cookie = 'auth0_access_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+    try {
+      // セッションクリア
+      await fetch('/api/auth/logout', { method: 'POST' })
+      
+      // クライアント側のクッキーも削除
+      if (typeof window !== 'undefined') {
+        document.cookie = 'auth0_id_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+      }
+      
+      // LIFF URLにリダイレクト
+      const liffId = process.env.NEXT_PUBLIC_LIFF_ID
+      if (liffId) {
+        window.location.href = `https://liff.line.me/${liffId}`
+      } else {
+        router.push('/login')
+      }
+    } catch (error) {
+      console.error('Logout error:', error)
+      router.push('/login')
     }
-    router.push('/login')
   }
 
   // /employer配下ではHeaderを表示しない
@@ -94,9 +105,24 @@ export function Header() {
             {user && (
               <div className="flex items-center gap-4">
                 <NotificationDropdown />
-                <span className="text-sm text-gray-600">
-                  {user.user_metadata?.display_name || user.email}
-                </span>
+                <Link href="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                  {user.user_metadata?.picture ? (
+                    <img
+                      src={user.user_metadata.picture}
+                      alt={user.user_metadata?.display_name || user.email || 'ユーザー'}
+                      className="w-8 h-8 rounded-full object-cover border-2 border-green-500"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center border-2 border-green-500">
+                      <span className="text-white text-sm font-bold">
+                        {(user.user_metadata?.display_name || user.email || '?').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <span className="text-sm text-gray-600 hidden md:inline">
+                    {user.user_metadata?.display_name || user.email}
+                  </span>
+                </Link>
                 <Button
                   variant="outline"
                   size="sm"

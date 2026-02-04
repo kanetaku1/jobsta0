@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { requireEmployerAuth } from '@/lib/auth/employer-auth'
+import { requireEmployer } from '@/lib/auth/get-current-user'
 import { getEmployerJobs } from '@/lib/actions/jobs'
-import { signOutEmployer } from '@/lib/auth/employer-auth'
+// ログアウトはヘッダーで処理
 import { Button } from '@/components/ui/button'
 import { CategoryBadge } from '@/components/jobs/CategoryBadge'
 import { JobCategory } from '@/types/job'
@@ -10,9 +10,9 @@ import { JobCategory } from '@/types/job'
 export default async function EmployerJobsPage() {
   let employer
   try {
-    employer = await requireEmployerAuth()
+    employer = await requireEmployer()
   } catch (error) {
-    redirect('/employer/login')
+    redirect('/employer')
   }
 
   const jobs = await getEmployerJobs()
@@ -28,11 +28,7 @@ export default async function EmployerJobsPage() {
                 新規求人作成
               </Button>
             </Link>
-            <form action={signOutEmployer}>
-              <Button type="submit" variant="outline">
-                ログアウト
-              </Button>
-            </form>
+            {/* ログアウトボタンは削除（ヘッダーで処理） */}
           </div>
         </div>
 

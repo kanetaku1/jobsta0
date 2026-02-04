@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { createApplication } from '@/lib/actions/applications'
-import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getCurrentUserFromSession } from '@/lib/auth/session-utils'
 
 type IndividualApplicationFormProps = {
   jobId: string
@@ -24,7 +24,7 @@ export function IndividualApplicationForm({ jobId, jobTitle, onSuccess }: Indivi
 
   // コンポーネントマウント時にユーザー情報を自動入力
   useEffect(() => {
-    const user = getCurrentUserFromAuth0()
+    const user = getCurrentUserFromSession()
     if (user) {
       // 名前を自動入力
       const displayName = user.name

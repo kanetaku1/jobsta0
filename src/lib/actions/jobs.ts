@@ -1,6 +1,6 @@
 'use server'
 
-import { requireEmployerAuth } from '@/lib/auth/employer-auth'
+import { requireEmployer } from '@/lib/auth/get-current-user'
 import { prisma } from '@/lib/prisma/client'
 import { unstable_cache } from 'next/cache'
 import { CACHE_TAGS } from '@/lib/cache/server-cache'
@@ -51,7 +51,7 @@ export type CreateJobInput = {
 export async function createJob(input: CreateJobInput) {
   try {
     // 求人作成者認証必須
-    const employer = await requireEmployerAuth()
+    const employer = await requireEmployer()
 
     // カテゴリに応じて日付処理を分岐
     let jobs: any[] = []
@@ -260,7 +260,7 @@ export async function getJob(id: string) {
  */
 export async function getEmployerJobs() {
   try {
-    const employer = await requireEmployerAuth()
+    const employer = await requireEmployer()
 
     const jobs = await prisma.job.findMany({
       where: { employerId: employer.id },
@@ -322,7 +322,7 @@ export type UpdateJobInput = {
 export async function updateJob(jobId: string, input: UpdateJobInput) {
   try {
     // 求人作成者認証必須
-    const employer = await requireEmployerAuth()
+    const employer = await requireEmployer()
 
     // 求人を確認
     const job = await prisma.job.findUnique({
@@ -421,7 +421,7 @@ export async function updateJob(jobId: string, input: UpdateJobInput) {
 export async function deleteJob(jobId: string) {
   try {
     // 求人作成者認証必須
-    const employer = await requireEmployerAuth()
+    const employer = await requireEmployer()
 
     // 求人を確認
     const job = await prisma.job.findUnique({
@@ -477,7 +477,7 @@ export async function deleteJob(jobId: string) {
 export async function getJobApplications(jobId: string) {
   try {
     // 求人作成者認証必須
-    const employer = await requireEmployerAuth()
+    const employer = await requireEmployer()
 
     // 求人を確認
     const job = await prisma.job.findUnique({

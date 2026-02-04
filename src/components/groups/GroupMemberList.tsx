@@ -4,7 +4,7 @@ import { CheckCircle, Clock, XCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ApplicationToggle } from '@/components/applications/ApplicationToggle'
 import { getGroup } from '@/lib/actions/groups'
-import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getCurrentUserFromSession } from '@/lib/auth/session-utils'
 import { useToast } from '@/components/ui/use-toast'
 import { getMemberApplicationStatus } from '@/lib/utils/group'
 import type { Group, GroupMember, ApplicationParticipationStatus } from '@/types/application'
@@ -16,7 +16,7 @@ type GroupMemberListProps = {
 
 export function GroupMemberList({ group, onGroupUpdate }: GroupMemberListProps) {
   const { toast } = useToast()
-  const currentUser = getCurrentUserFromAuth0()
+  const currentUser = getCurrentUserFromSession()
   const currentUserId = currentUser?.id
 
   const handleStatusChange = async (memberId: string, status: ApplicationParticipationStatus) => {

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { getApplications } from '@/lib/actions/applications'
 import { getGroups, getGroup } from '@/lib/actions/groups'
-import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getCurrentUserFromSession } from '@/lib/auth/session-utils'
 import { getJob } from '@/lib/utils/getData'
 import type { ApplicationGroup, Group } from '@/types/application'
 
@@ -30,7 +30,7 @@ export default function ApplicationDetailPage({
       const id = resolvedParams.id
       setApplicationId(id)
 
-      const user = getCurrentUserFromAuth0()
+      const user = getCurrentUserFromSession()
       if (!user) {
         setLoading(false)
         return

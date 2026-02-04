@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { requireEmployerAuth } from '@/lib/auth/employer-auth'
+import { requireEmployer } from '@/lib/auth/get-current-user'
 import { CreateJobForm } from './CreateJobForm'
 
 export default async function CreateJobPage() {
   try {
-    await requireEmployerAuth()
+    await requireEmployer()
   } catch (error) {
     redirect('/employer/login')
   }

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { CategoryBadge } from '@/components/jobs/CategoryBadge'
 import { JobCategory } from '@/types/job'
 import { getEmployerJobs } from '@/lib/actions/jobs'
-import { signOutEmployer } from '@/lib/auth/employer-auth'
+// ログアウトはヘッダーで処理されるため不要
 
 type EmployerJob = {
   id: string
@@ -60,11 +60,7 @@ export function EmployerJobsPageClient({ employer, initialJobs }: EmployerJobsPa
                 新規求人作成
               </Button>
             </Link>
-            <form action={signOutEmployer}>
-              <Button type="submit" variant="outline">
-                ログアウト
-              </Button>
-            </form>
+            {/* ログアウトボタンは削除（ヘッダーで処理） */}
           </div>
         </div>
 

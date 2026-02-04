@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
-import { requireEmployerAuth } from '@/lib/auth/employer-auth'
+import { requireEmployer } from '@/lib/auth/get-current-user'
 import { getJob, updateJob, deleteJob } from '@/lib/actions/jobs'
 import { EditJobForm } from './EditJobForm'
 
@@ -11,7 +11,7 @@ export default async function EditJobPage({
 }) {
   let employer
   try {
-    employer = await requireEmployerAuth()
+    employer = await requireEmployer()
   } catch (error) {
     redirect('/employer/login')
   }

@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { getFriends } from '@/lib/actions/friends'
 import { createGroup } from '@/lib/actions/groups'
 import { createNotification } from '@/lib/actions/notifications'
-import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getCurrentUserFromSession } from '@/lib/auth/session-utils'
 import { GroupInviteLinkModal } from '@/components/groups/GroupInviteLinkModal'
 import type { Group, Friend } from '@/types/application'
 
@@ -32,10 +32,9 @@ export function GroupCreateModal({ isOpen, onClose, onGroupCreated, jobId }: Gro
 
   useEffect(() => {
     if (isOpen) {
-      // Auth0のIDトークンからユーザー情報を取得
       const loadUserInfo = () => {
         try {
-          const user = getCurrentUserFromAuth0()
+          const user = getCurrentUserFromSession()
           
           if (user) {
             const displayName = user.displayName || user.name || user.email?.split('@')[0] || ''

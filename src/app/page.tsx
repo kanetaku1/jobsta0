@@ -1,17 +1,17 @@
 import { redirect } from 'next/navigation'
-import { getCurrentEmployer } from '@/lib/auth/employer-auth'
+import { getCurrentUser } from '@/lib/auth/get-current-user'
 import { JobSeekerHomePage } from './JobSeekerHomePage'
 
 /**
  * ルートページ
- * 雇用主（Supabaseセッション）と求職者（Auth0トークン）の両方をチェック
- * 優先順位: 雇用主 > 求職者 > 未認証
+ * 雇用主の場合は求人管理ページにリダイレクト
+ * 求職者の場合は求職者向けページを表示
  */
 export default async function HomePage() {
-  // まず雇用主セッションをチェック（サーバーサイド）
-  const employer = await getCurrentEmployer()
+  // 現在のユーザーを取得
+  const user = await getCurrentUser()
   
-  if (employer) {
+  if (user && user.role === 'EMPLOYER') {
     // 雇用主の場合は求人管理ページにリダイレクト
     redirect('/employer/jobs')
   }

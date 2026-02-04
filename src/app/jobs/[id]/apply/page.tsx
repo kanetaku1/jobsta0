@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { getJob } from '@/lib/utils/getData'
 import { getGroups, getGroup } from '@/lib/actions/groups'
 import { createApplication } from '@/lib/actions/applications'
-import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getCurrentUserFromSession } from '@/lib/auth/session-utils'
 import { getApprovedMembers, getParticipatingMembers, canSubmitApplication } from '@/lib/utils/group'
 import { GroupCreateModal } from '@/components/groups/GroupCreateModal'
 import { GroupInviteLinkModal } from '@/components/groups/GroupInviteLinkModal'
@@ -57,7 +57,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
         }
 
         // Auth0のIDトークンからユーザーIDを取得
-        const user = getCurrentUserFromAuth0()
+        const user = getCurrentUserFromSession()
         if (!user) {
           setLoading(false)
           return
@@ -101,7 +101,7 @@ export default function ApplyPage({ params }: { params: Promise<{ id: string }> 
   // この画面では承認状況を確認するのみ
 
   const handleGroupCreated = async (newGroup: Group) => {
-    const user = getCurrentUserFromAuth0()
+    const user = getCurrentUserFromSession()
     if (!user) return
     
     // 求人ごとのグループを再取得
