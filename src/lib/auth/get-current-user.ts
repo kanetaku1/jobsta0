@@ -1,26 +1,25 @@
 import { cookies } from 'next/headers'
 import { unstable_cache } from 'next/cache'
-import { getAuth0IdTokenFromRequest } from './auth0-utils'
-import { getUserFromAuth0Token } from './auth0-utils'
+import { getSessionTokenFromRequest, getUserFromSessionToken } from './session-utils'
 import { prisma } from '@/lib/prisma/client'
 import { CACHE_TAGS } from '@/lib/cache/server-cache'
 
 /**
  * サーバー側で現在の認証ユーザーを取得（キャッシュ付き）
- * Auth0のIDトークンからユーザー情報を取得し、PrismaのUserテーブルと照合
+ * セッショントークンからユーザー情報を取得し、PrismaのUserテーブルと照合
  * 
  * @returns 認証されたユーザー情報、認証されていない場合はnull
  */
 export async function getCurrentUser() {
   try {
     const cookieStore = await cookies()
-    const idToken = getAuth0IdTokenFromRequest(cookieStore)
+    const sessionToken = getSessionTokenFromRequest(cookieStore)
     
-    if (!idToken) {
+    if (!sessionToken) {
       return null
     }
 
-    const userInfo = getUserFromAuth0Token(idToken)
+    const userInfo = getUserFromSessionToken(sessionToken)
     
     if (!userInfo) {
       return null
@@ -29,7 +28,7 @@ export async function getCurrentUser() {
     // キャッシュキーをユーザーIDで生成
     const cacheKey = `user:${userInfo.id}`
     
-    // キャッシュされた関数内でidTokenを使用するため、idTokenをクロージャで保持
+    // キャッシュされた関数内でユーザーデータを取得
     const getUserData = async () => {
       // PrismaのUserテーブルからユーザーを取得
       const user = await prisma.user.findUnique({
@@ -37,15 +36,9 @@ export async function getCurrentUser() {
       })
 
       if (!user) {
-        // ユーザーが存在しない場合は作成（sync-user.tsのロジックを参考）
-        // この場合はキャッシュをスキップして直接作成
-        const { syncUserFromAuth0 } = await import('./sync-user')
-        const newUser = await syncUserFromAuth0(idToken)
-        // ユーザー作成後、キャッシュを無効化
-        const { revalidateTag } = await import('next/cache')
-        revalidateTag(CACHE_TAGS.USER)
-        revalidateTag(`${CACHE_TAGS.USER}:${userInfo.id}`)
-        return newUser
+        // ユーザーが存在しない場合（通常はLIFF認証時に作成されるはず）
+        console.warn('User not found in database:', userInfo.id)
+        return null
       }
 
       return user

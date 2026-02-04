@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/components/ui/use-toast'
 import { JobInfo } from '@/components/jobs/JobInfo'
 import { getGroup, addMemberToGroup } from '@/lib/actions/groups'
-import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getCurrentUserFromSession } from '@/lib/auth/session-utils'
 import { getJob } from '@/lib/utils/getData'
 import type { Group } from '@/types/application'
 
@@ -84,7 +84,7 @@ export default function GroupInvitePage({
       }
 
       // 現在のユーザーがグループのオーナーか確認
-      const currentUser = getCurrentUserFromAuth0()
+      const currentUser = getCurrentUserFromSession()
       if (!currentUser) {
         setLoading(false)
         return
@@ -105,7 +105,7 @@ export default function GroupInvitePage({
   const handleJoin = async () => {
     if (!groupId || !group) return
 
-    const currentUser = getCurrentUserFromAuth0()
+    const currentUser = getCurrentUserFromSession()
     if (!currentUser) {
       toast({
         title: 'エラー',

@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { requireEmployerAuth } from '@/lib/auth/employer-auth'
+import { requireEmployer } from '@/lib/auth/get-current-user'
 import { handleServerActionError } from '@/lib/utils/error-handler'
 
 /**
@@ -53,7 +53,7 @@ function validateFile(file: File): { isValid: boolean; error?: string } {
 export async function uploadJobAttachment(formData: FormData) {
   try {
     // 認証チェック（EMPLOYER のみ）
-    const employer = await requireEmployerAuth()
+    const employer = await requireEmployer()
 
     const file = formData.get('file') as File
     if (!file) {
@@ -117,7 +117,7 @@ export async function uploadJobAttachment(formData: FormData) {
 export async function deleteJobAttachment(fileUrl: string) {
   try {
     // 認証チェック（EMPLOYER のみ）
-    const employer = await requireEmployerAuth()
+    const employer = await requireEmployer()
 
     // URLからファイルパスを抽出
     const url = new URL(fileUrl)
@@ -165,7 +165,7 @@ export async function deleteJobAttachment(fileUrl: string) {
 export async function uploadMultipleJobAttachments(formData: FormData) {
   try {
     // 認証チェック（EMPLOYER のみ）
-    await requireEmployerAuth()
+    await requireEmployer()
 
     const files = formData.getAll('files') as File[]
     if (files.length === 0) {

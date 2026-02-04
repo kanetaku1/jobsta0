@@ -242,3 +242,20 @@ model Friend {
   @@index([friendUserId])
   @@map("friends")
 }
+
+// ==================== ワンタイムトークン ====================
+model OnetimeToken {
+  id            String    @id @default(uuid())
+  token         String    @unique
+  userId        String
+  inviterUserId String?
+  groupId       String?
+  expiresAt     DateTime
+  used          Boolean   @default(false)
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+  
+  @@index([token])
+  @@index([userId])
+  @@map("onetime_tokens")
+}

@@ -1,161 +1,114 @@
-# Jobsta - ソーシャルバイトアプリ
+# Jobsta - LINE連携バイトマッチングアプリ
 
-**Jobsta（ジョブスタ)**は、友達と一緒に応募できるソーシャル型短期バイトマッチングアプリです。
+LINEと連携した友達と一緒に応募できるソーシャル型短期バイトマッチングアプリです。
 
-## 🚀 開発環境セットアップ
+## ✨ 主な機能
 
-#### 1. リポジトリをクローン
+- **LINE LIFF認証**: LINE内でシームレスにログイン
+- **ロール別認証**: 求職者と雇用主で別々のLIFF URL
+- **友達招待**: shareTargetPickerで友達を直接招待
+- **グループ応募**: 友達と一緒に求人応募
+- **ワンタイムトークン**: 招待リンクからワンタップログイン
 
-```bash
-git clone https://github.com/kanetaku1/jobsta0.git
-cd jobsta0
-```
+## 🚀 クイックスタート
 
-#### 2. 環境変数を設定
-
-`.env.local`ファイルを作成し、SupabaseとPrismaの設定を行ってください。
-
-詳細は [`docs/AUTH_SETUP_GUIDE.md`](./docs/AUTH_SETUP_GUIDE.md) を参照してください。
-
-```bash
-# 必要な環境変数
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-DATABASE_URL=postgresql://postgres:password@host:5432/postgres
-DIRECT_URL=postgresql://postgres:password@host:5432/postgres
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
-#### 3. パッケージをインストール
+### 1. インストール
 
 ```bash
 npm install
+npx prisma db push
+npx prisma generate
 ```
 
-#### 4. データベースのセットアップ
+### 2. 環境変数設定（`.env.local`）
 
-```bash
-# Prisma Clientの生成
-npm run db:generate
+```env
+# 求職者用LIFF
+NEXT_PUBLIC_LIFF_ID=your-job-seeker-liff-id
+NEXT_PUBLIC_LIFF_ID_JOB_SEEKER=your-job-seeker-liff-id
 
-# データベースマイグレーション（初回のみ）
-npm run db:migrate
+# 雇用主用LIFF
+NEXT_PUBLIC_LIFF_ID_EMPLOYER=your-employer-liff-id
+
+# ワンタイムトークン
+ONETIME_TOKEN_SECRET=your-random-secret
+
+# データベース
+DATABASE_URL=your-database-url
+DIRECT_URL=your-direct-url
 ```
 
-#### 5. ローカルサーバー起動
+### 3. 開発サーバー起動
 
 ```bash
 npm run dev
+npx ngrok http 3000
 ```
 
-## 🧪 テスト環境の使い分け
+### 4. LINE Developers ConsoleでLIFFアプリ作成
 
-### 開発環境（devブランチ）
-- **データベース**: 実際の開発用データベースでテスト
-- **目的**: 機能の動作確認、統合テスト
-- **方法**: `npm run dev`でローカルサーバー起動
+**求職者用**: Endpoint URL `https://your-domain.com`  
+**雇用主用**: Endpoint URL `https://your-domain.com/employer`
 
-### CI環境（GitHub Actions）
-- **データベース**: 不要（モックデータで十分）
-- **目的**: コード品質チェック（ESLint、TypeScript、Prettier）
-- **方法**: プルリクエスト時に自動実行
-- **注意**: ビルドテストはVercelが代行
-
-### 本番環境（mainブランチ + Vercel）
-- **データベース**: 本番用データベース
-- **目的**: 実際のユーザー向けサービス
-- **方法**: mainブランチへのマージで自動デプロイ
-- **テスト**: Vercelが自動でビルド・デプロイテストを実行
-
-## 📁 フォルダ構成
-
-```
-/src
-  ├── app/          # 画面ルーティング
-  ├── components/   # UIコンポーネント群
-  ├── lib/          # データベース接続やサービス
-  ├── types/        # TypeScript型定義
-  └── styles/       # スタイルシート
-```
+詳細は[docs/QUICK_START.md](./docs/QUICK_START.md)を参照してください。
 
 ## 🛠 使用技術
 
-- **Frontend**: Next.js 15.4.5, React 19.1.0, TypeScript v5
-- **Styling**: TailwindCSS v3.4.17, Shadcn/ui
-- **Database**: PostgreSQL (Supabase) + Prisma v6.13.0
-- **Authentication**: Supabase Auth (LINE Login対応)
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **Styling**: TailwindCSS, Shadcn/ui
+- **Database**: PostgreSQL (Supabase) + Prisma
+- **Authentication**: LINE LIFF, ワンタイムトークン
 - **Deployment**: Vercel
 
-## 👥 チーム開発ルール
+## 📁 プロジェクト構造
 
-### ブランチ戦略
-
-- **main**: 本番環境用（直接編集禁止）
-- **dev**: 開発用の統合ブランチ
-- **feature/xxx**: 新機能開発用
-- **bugfix/xxx**: バグ修正用
-
-### 開発の流れ
-
-1. **ブランチ作成**: `git checkout -b feature/新機能名`
-2. **コーディング**: 機能を実装
-3. **コミット**: `git commit -m "feat: 新機能の説明"`
-4. **プッシュ**: `git push origin feature/新機能名`
-5. **プルリクエスト**: GitHubでレビュー依頼
-6. **レビュー**: チームメンバーが確認
-7. **マージ**: 承認後にdevブランチに統合
-
-### コミットメッセージのルール
-
-- `feat:` - 新機能
-- `fix:` - バグ修正
-- `docs:` - ドキュメント更新
-- `style:` - コードスタイルの変更
-- `refactor:` - リファクタリング
-
-## 🔧 よくあるトラブルと解決方法
-
-### データベース関連
-
-```bash
-# Prisma Clientの生成
-npm run db:generate
-
-# マイグレーション（開発環境）
-npm run db:migrate
-
-# マイグレーション（本番環境）
-npm run db:migrate:deploy
-
-# Prisma Studio（データベースGUI）
-npm run db:studio
-
-# スキーマを直接プッシュ（開発用）
-npm run db:push
+```
+src/
+├── app/                  # Next.js App Router
+│   ├── api/auth/         # 認証API
+│   ├── employer/         # 雇用主画面
+│   ├── jobs/             # 求人検索
+│   └── friends/          # 友達管理
+├── components/           # UIコンポーネント
+├── lib/
+│   ├── auth/             # 認証ロジック
+│   ├── liff/             # LIFF統合
+│   └── actions/          # サーバーアクション
+└── types/                # TypeScript型定義
 ```
 
-### Supabase設定
+## 🔧 開発コマンド
 
-詳細な設定手順は [`docs/AUTH_SETUP_GUIDE.md`](./docs/AUTH_SETUP_GUIDE.md) を参照してください。
+```bash
+npm run dev              # 開発サーバー
+npm run build            # ビルド
+npm run type-check       # 型チェック
+npm run lint             # リント
+```
 
-## 📚 参考資料
+## 👥 ブランチ戦略
 
-- [Next.js公式ドキュメント](https://nextjs.org/docs)
-- [TailwindCSS公式ドキュメント](https://tailwindcss.com/docs)
-- [Prisma公式ドキュメント](https://www.prisma.io/docs)
-- [GitHub Flow](https://guides.github.com/introduction/flow/)
+- **main**: 本番環境用
+- **dev**: 開発用統合ブランチ
+- **feature/xxx**: 新機能開発
+- **fix/xxx**: バグ修正
 
-## 🤝 チーム開発のコツ
+## 📚 ドキュメント
 
-1. **小さな変更を頻繁に**: 大きな変更は分けて実装
-2. **コミュニケーション**: 分からないことは遠慮なく質問
-3. **レビュー**: お互いのコードを確認し合う
-4. **ドキュメント**: 分かったことは共有する
+- **[docs/QUICK_START.md](./docs/QUICK_START.md)** - セットアップ手順
+- **[docs/LIFF_GUIDE.md](./docs/LIFF_GUIDE.md)** - LIFF認証ガイド
+- **[docs/ENV_VARIABLES.md](./docs/ENV_VARIABLES.md)** - 環境変数一覧
+- **[docs/DEPLOYMENT_GUIDE.md](./docs/DEPLOYMENT_GUIDE.md)** - デプロイ手順
+- **[docs/PROJECT_OVERVIEW.md](./docs/PROJECT_OVERVIEW.md)** - プロジェクト概要
 
-## 🆘 困ったときは
+## 🐛 トラブルシューティング
 
-- GitHubのIssuesで質問
-- チーム内で相談
-- このREADME.mdを確認
+| エラー | 解決策 |
+|--------|--------|
+| LIFF initialization failed | `.env.local`のLIFF IDを確認 |
+| page error | Endpoint URLを確認（末尾スラッシュなし） |
+| shareTargetPicker not available | Scopeに`chat_message.write`を追加 |
 
 ---
+
+**🎉 LINEで友達と一緒にバイトを見つけよう！**

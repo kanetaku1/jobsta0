@@ -3,7 +3,6 @@ import { UserRole } from '@prisma/client';
 
 import { getCurrentUser, requireAuth } from './get-current-user';
 import { createPrismaMock } from '../tests/test-helpers';
-import { revalidateTag } from 'next/cache';
 
 var prismaMock: ReturnType<typeof createPrismaMock>;
 var cookiesMock: ReturnType<typeof vi.fn>;
@@ -14,13 +13,9 @@ vi.mock('@/lib/prisma/client', async () => {
   return { prisma: prismaMock };
 });
 
-vi.mock('./auth0-utils', () => ({
-  getAuth0IdTokenFromRequest: vi.fn(),
-  getUserFromAuth0Token: vi.fn(),
-}));
-
-vi.mock('./sync-user', () => ({
-  syncUserFromAuth0: vi.fn(),
+vi.mock('./session-utils', () => ({
+  getSessionTokenFromRequest: vi.fn(),
+  getUserFromSessionToken: vi.fn(),
 }));
 
 vi.mock('next/headers', () => {
@@ -28,10 +23,9 @@ vi.mock('next/headers', () => {
   return { cookies: cookiesMock };
 });
 
-const auth0Utils = await import('./auth0-utils');
-const syncUserModule = await import('./sync-user');
+const sessionUtils = await import('./session-utils');
 
-describe('get-current-user (LINE/Login compatible)', () => {
+describe('get-current-user (LIFF compatible)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Object.values(prismaMock.user).forEach((fn) => fn.mockReset());
@@ -40,9 +34,9 @@ describe('get-current-user (LINE/Login compatible)', () => {
     });
   });
 
-  it('returns null when no id token is provided', async () => {
-    vi.mocked(auth0Utils.getAuth0IdTokenFromRequest).mockReturnValue(null);
-    vi.mocked(auth0Utils.getUserFromAuth0Token).mockReturnValue(null);
+  it('returns null when no session token is provided', async () => {
+    vi.mocked(sessionUtils.getSessionTokenFromRequest).mockReturnValue(null);
+    vi.mocked(sessionUtils.getUserFromSessionToken).mockReturnValue(null);
 
     const user = await getCurrentUser();
 
@@ -50,78 +44,88 @@ describe('get-current-user (LINE/Login compatible)', () => {
     expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
   });
 
-  it('returns existing user when token is valid and user exists', async () => {
-    cookiesMock.mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: 'token-1' }),
+  it('returns user from db if found', async () => {
+    vi.mocked(sessionUtils.getSessionTokenFromRequest).mockReturnValue('mock-token');
+    vi.mocked(sessionUtils.getUserFromSessionToken).mockReturnValue({
+      id: 'line|user-1',
+      email: 'test@example.com',
+      name: 'Test User',
+      displayName: 'Test User',
+      picture: 'http://example.com/pic.jpg',
+      lineId: 'line|user-1',
     });
-    vi.mocked(auth0Utils.getAuth0IdTokenFromRequest).mockReturnValue('token-1');
-    vi.mocked(auth0Utils.getUserFromAuth0Token).mockReturnValue({
-      id: 'line-123',
-      email: 'a@example.com',
-      name: 'line user',
-      displayName: 'line user',
-      picture: null,
-      lineId: 'line-123',
-    });
+
     prismaMock.user.findUnique.mockResolvedValue({
-      id: 'u1',
-      supabaseId: 'line-123',
-      email: 'a@example.com',
-      name: 'line user',
-      displayName: 'line user',
+      id: 'user-1',
+      supabaseId: 'line|user-1',
+      name: 'Test User',
+      displayName: 'Test User',
+      avatarUrl: 'http://example.com/pic.jpg',
       role: UserRole.JOB_SEEKER,
-      lineId: null,
-      avatarUrl: null,
+      email: 'test@example.com',
+      lineId: 'line|user-1',
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
     const user = await getCurrentUser();
 
-    expect(user?.id).toBe('u1');
-    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
-      where: { supabaseId: 'line-123' },
-    });
-    expect(revalidateTag).not.toHaveBeenCalled();
+    expect(user).not.toBeNull();
+    expect(user?.id).toBe('user-1');
+    expect(user?.email).toBe('test@example.com');
   });
 
-  it('creates user via sync when not found', async () => {
-    cookiesMock.mockResolvedValue({
-      get: vi.fn().mockReturnValue({ value: 'token-2' }),
-    });
-    vi.mocked(auth0Utils.getAuth0IdTokenFromRequest).mockReturnValue('token-2');
-    vi.mocked(auth0Utils.getUserFromAuth0Token).mockReturnValue({
-      id: 'line-234',
-      email: 'b@example.com',
-      name: 'b user',
-      displayName: 'b user',
+  it('returns null if user not found in db', async () => {
+    vi.mocked(sessionUtils.getSessionTokenFromRequest).mockReturnValue('mock-token');
+    vi.mocked(sessionUtils.getUserFromSessionToken).mockReturnValue({
+      id: 'line|new-user',
+      email: 'new@example.com',
+      name: 'New User',
+      displayName: 'New User',
       picture: null,
-      lineId: 'line-234',
+      lineId: 'line|new-user',
     });
+
     prismaMock.user.findUnique.mockResolvedValue(null);
-    vi.mocked(syncUserModule.syncUserFromAuth0).mockResolvedValue({
-      id: 'new-user',
-      supabaseId: 'line-234',
-      email: 'b@example.com',
-      name: 'b user',
-      displayName: 'b user',
-      role: UserRole.JOB_SEEKER,
-      lineId: null,
+
+    const user = await getCurrentUser();
+
+    expect(user).toBeNull();
+  });
+
+  it('requireAuth throws if not authenticated', async () => {
+    vi.mocked(sessionUtils.getSessionTokenFromRequest).mockReturnValue(null);
+
+    await expect(requireAuth()).rejects.toThrow('認証が必要です。ログインしてください。');
+  });
+
+  it('requireAuth returns user if authenticated', async () => {
+    vi.mocked(sessionUtils.getSessionTokenFromRequest).mockReturnValue('mock-token');
+    vi.mocked(sessionUtils.getUserFromSessionToken).mockReturnValue({
+      id: 'line|user-1',
+      email: 'test@example.com',
+      name: 'Test User',
+      displayName: 'Test User',
+      picture: null,
+      lineId: 'line|user-1',
+    });
+
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'user-1',
+      supabaseId: 'line|user-1',
+      name: 'Test User',
+      displayName: 'Test User',
       avatarUrl: null,
+      role: UserRole.JOB_SEEKER,
+      email: 'test@example.com',
+      lineId: 'line|user-1',
       createdAt: new Date(),
       updatedAt: new Date(),
     });
 
-    const user = await getCurrentUser();
+    const user = await requireAuth();
 
-    expect(syncUserModule.syncUserFromAuth0).toHaveBeenCalledWith('token-2');
-    expect(user?.id).toBe('new-user');
-    expect(revalidateTag).toHaveBeenCalledWith('user');
-    expect(revalidateTag).toHaveBeenCalledWith('user:line-234');
-  });
-
-  it('requireAuth throws when unauthenticated', async () => {
-    vi.mocked(auth0Utils.getAuth0IdTokenFromRequest).mockReturnValue(null);
-    await expect(requireAuth()).rejects.toThrow('認証が必要です。ログインしてください。');
+    expect(user).not.toBeNull();
+    expect(user.id).toBe('user-1');
   });
 });

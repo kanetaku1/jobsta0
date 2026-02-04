@@ -9,7 +9,9 @@ import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
 import { QRCodeSVG } from 'qrcode.react'
 import { getFriends, addFriend, removeFriend } from '@/lib/actions/friends'
-import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getCurrentUserFromSession } from '@/lib/auth/session-utils'
+import { generateOnetimeToken } from '@/lib/auth/onetime-token'
+import { SocialShareButton } from '@/components/friends/SocialShareButton'
 import type { Friend } from '@/types/application'
 
 export default function FriendsPage() {
@@ -21,6 +23,7 @@ export default function FriendsPage() {
   const [newFriendEmail, setNewFriendEmail] = useState('')
   const [copiedLink, setCopiedLink] = useState(false)
   const [showQRCode, setShowQRCode] = useState(false)
+  const [inviteLink, setInviteLink] = useState('')
 
   const loadFriends = async () => {
     // クライアント側キャッシュを確認
@@ -118,8 +121,8 @@ export default function FriendsPage() {
     }
   }
 
-  const handleCopyLink = () => {
-    const user = getCurrentUserFromAuth0()
+  const handleInviteCreate = async () => {
+    const user = getCurrentUserFromSession()
     if (!user) {
       toast({
         title: 'エラー',
@@ -128,8 +131,32 @@ export default function FriendsPage() {
       })
       return
     }
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-    const inviteLink = `${baseUrl}/friends/invite?from=${user.id}`
+    
+    try {
+      // ワンタイムトークンを生成
+      const token = await generateOnetimeToken({
+        userId: user.id,
+        inviterUserId: user.id,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24時間
+      })
+      
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
+      const newInviteLink = `${baseUrl}/login?token=${token}&redirect=/friends`
+      
+      setInviteLink(newInviteLink)
+      setShowQRCode(true)
+    } catch (error) {
+      console.error('Failed to create invite link:', error)
+      toast({
+        title: 'エラー',
+        description: '招待リンクの作成に失敗しました',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const handleCopyLink = () => {
+    if (!inviteLink) return
     navigator.clipboard.writeText(inviteLink)
     setCopiedLink(true)
     toast({
@@ -157,9 +184,7 @@ export default function FriendsPage() {
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-3xl font-bold text-gray-800">友達リスト</h1>
             <Button
-              onClick={() => {
-                setShowQRCode(true)
-              }}
+              onClick={handleInviteCreate}
               className="flex items-center gap-2"
             >
               <UserPlus size={18} />
@@ -314,16 +339,16 @@ export default function FriendsPage() {
               <p className="text-sm text-gray-600">
                 このリンクまたはQRコードを友達に送って、友達リストに追加してもらえます。
               </p>
+              
+              <div className="flex items-center gap-2">
+                <SocialShareButton inviteUrl={inviteLink} label="友達を招待" />
+              </div>
+              
               <div className="flex items-center gap-2">
                 <Input
                   type="text"
                   readOnly
-                  value={(() => {
-                    const user = getCurrentUserFromAuth0()
-                    if (!user) return ''
-                    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-                    return `${baseUrl}/friends/invite?from=${user.id}`
-                  })()}
+                  value={inviteLink}
                   className="flex-1 text-sm"
                 />
                 <Button
@@ -348,12 +373,7 @@ export default function FriendsPage() {
 
               <div className="flex items-center justify-center p-4 bg-gray-50 rounded border border-gray-200">
                 <QRCodeSVG 
-                  value={(() => {
-                    const user = getCurrentUserFromAuth0()
-                    if (!user) return ''
-                    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin
-                    return `${baseUrl}/friends/invite?from=${user.id}`
-                  })()} 
+                  value={inviteLink} 
                   size={200} 
                 />
               </div>

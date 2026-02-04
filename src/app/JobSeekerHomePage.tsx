@@ -2,19 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { getCurrentUserFromAuth0 } from '@/lib/auth/auth0-utils'
+import { getCurrentUserFromSession } from '@/lib/auth/session-utils'
 import { Button } from '@/components/ui/button'
 
 /**
  * 求職者向けホームページ
  * 認証済みの場合は求職者向け機能を表示
- * 未認証の場合はログインリンクと雇用主向けリンクを表示
  */
 export function JobSeekerHomePage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
 
   useEffect(() => {
-    const user = getCurrentUserFromAuth0()
+    const user = getCurrentUserFromSession()
     setIsAuthenticated(!!user)
   }, [])
 
@@ -37,7 +36,6 @@ export function JobSeekerHomePage() {
         <p className="text-xl text-gray-600 mb-12">友達と応募できる短期バイトマッチングアプリ</p>
         
         {isAuthenticated ? (
-          // 認証済み：求職者向け機能を表示
           <div className="bg-white rounded-lg shadow-xl p-8 mb-8">
             <Link 
               href="/jobs"
@@ -47,7 +45,6 @@ export function JobSeekerHomePage() {
             </Link>
           </div>
         ) : (
-          // 未認証：ログインリンクと雇用主向けリンクを表示
           <div className="bg-white rounded-lg shadow-xl p-8 mb-8 space-y-4">
             <Link href="/login">
               <Button className="w-full bg-green-600 text-white hover:bg-green-700 py-6 text-lg font-semibold">
