@@ -34,13 +34,18 @@ export function FileUploader({
   const { toast } = useToast()
 
   const handleFileChange = async (selectedFiles: FileList | null) => {
-    if (!selectedFiles || selectedFiles.length === 0) return
+    if (!selectedFiles || selectedFiles.length === 0) {
+      console.log('No files selected')
+      return
+    }
+
+    console.log('Files selected:', Array.from(selectedFiles).map(f => ({ name: f.name, type: f.type, size: f.size })))
 
     // 最大ファイル数チェック
     if (files.length + selectedFiles.length > maxFiles) {
       toast({
         title: 'エラー',
-        description: `最大${maxFiles}件までアップロード可能です`,
+        description: `最大${maxFiles}件までアップロード可能です（現在: ${files.length}件）`,
         variant: 'destructive'
       })
       return
@@ -49,34 +54,57 @@ export function FileUploader({
     setUploading(true)
 
     try {
-      const uploadPromises = Array.from(selectedFiles).map(async (file) => {
-        const formData = new FormData()
-        formData.append('file', file)
-        
-        const result = await uploadJobAttachment(formData)
-        
-        if (result.success && 'url' in result) {
-          return {
-            url: result.url,
-            fileName: result.fileName,
-            fileType: result.fileType as 'pdf' | 'image',
-            fileSize: result.fileSize
+      const uploadResults = await Promise.allSettled(
+        Array.from(selectedFiles).map(async (file) => {
+          console.log('Uploading file:', file.name)
+          const formData = new FormData()
+          formData.append('file', file)
+          
+          const result = await uploadJobAttachment(formData)
+          console.log('Upload result:', result)
+          
+          if (result.success && 'url' in result) {
+            return {
+              url: result.url,
+              fileName: result.fileName,
+              fileType: result.fileType as 'pdf' | 'image',
+              fileSize: result.fileSize
+            }
+          } else {
+            throw new Error('error' in result ? result.error : 'アップロード失敗')
           }
-        } else {
-          throw new Error('error' in result ? result.error : 'アップロード失敗')
-        }
-      })
+        })
+      )
 
-      const uploadedFiles = await Promise.all(uploadPromises)
-      const newFiles = [...files, ...uploadedFiles]
-      setFiles(newFiles)
-      onFilesChange(newFiles)
+      // 成功したファイルと失敗したファイルを分離
+      const successful = uploadResults
+        .filter((r): r is PromiseFulfilledResult<any> => r.status === 'fulfilled')
+        .map(r => r.value)
+      
+      const failed = uploadResults
+        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
 
-      toast({
-        title: '成功',
-        description: `${uploadedFiles.length}件のファイルをアップロードしました`
-      })
+      if (successful.length > 0) {
+        const newFiles = [...files, ...successful]
+        setFiles(newFiles)
+        onFilesChange(newFiles)
+
+        toast({
+          title: '成功',
+          description: `${successful.length}件のファイルをアップロードしました${failed.length > 0 ? `（${failed.length}件失敗）` : ''}`
+        })
+      }
+
+      if (failed.length > 0) {
+        console.error('Upload failures:', failed)
+        toast({
+          title: 'エラー',
+          description: `${failed.length}件のファイルのアップロードに失敗しました`,
+          variant: 'destructive'
+        })
+      }
     } catch (error) {
+      console.error('File upload error:', error)
       toast({
         title: 'エラー',
         description: error instanceof Error ? error.message : 'ファイルのアップロードに失敗しました',
@@ -88,7 +116,10 @@ export function FileUploader({
   }
 
   const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    console.log('File input changed:', e.target.files)
     handleFileChange(e.target.files)
+    // ファイル選択後、inputをリセットして同じファイルを再選択できるようにする
+    e.target.value = ''
   }
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -164,20 +195,26 @@ export function FileUploader({
           id="file-upload"
           className="hidden"
           multiple
-          accept=".pdf,.png,.jpg,.jpeg"
+          accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"
           onChange={handleFileInputChange}
           disabled={uploading || files.length >= maxFiles}
         />
-        <label htmlFor="file-upload">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={uploading || files.length >= maxFiles}
-            onClick={() => document.getElementById('file-upload')?.click()}
-          >
-            {uploading ? 'アップロード中...' : 'ファイルを選択'}
-          </Button>
-        </label>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={uploading || files.length >= maxFiles}
+          onClick={() => {
+            const input = document.getElementById('file-upload') as HTMLInputElement
+            input?.click()
+          }}
+        >
+          {uploading ? 'アップロード中...' : 'ファイルを選択'}
+        </Button>
+        {files.length >= maxFiles && (
+          <p className="text-xs text-red-600 mt-2">
+            最大{maxFiles}件に達しています。既存のファイルを削除してください。
+          </p>
+        )}
       </div>
 
       {/* アップロード済みファイル一覧 */}

@@ -78,9 +78,9 @@ export async function createNotification(
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.NOTIFICATIONS)
+    revalidateTag(CACHE_TAGS.NOTIFICATIONS, {})
     if (notification.userId) {
-      revalidateTag(`${CACHE_TAGS.NOTIFICATIONS}:${notification.userId}`)
+      revalidateTag(`${CACHE_TAGS.NOTIFICATIONS}:${notification.userId}`, {})
     }
 
     return {
@@ -129,8 +129,8 @@ export async function markNotificationAsRead(notificationId: string): Promise<bo
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.NOTIFICATIONS)
-    revalidateTag(`${CACHE_TAGS.NOTIFICATIONS}:${user.id}`)
+    revalidateTag(CACHE_TAGS.NOTIFICATIONS, {})
+    revalidateTag(`${CACHE_TAGS.NOTIFICATIONS}:${user.id}`, {})
 
     return true
   } catch (error) {

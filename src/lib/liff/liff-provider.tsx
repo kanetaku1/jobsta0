@@ -24,6 +24,11 @@ function getRoleFromLiffId(liffId: string): 'JOB_SEEKER' | 'EMPLOYER' {
   return 'JOB_SEEKER'
 }
 
+// セッションストレージのキー
+const VERIFICATION_CACHE_KEY = 'liff_token_verified'
+const VERIFICATION_TIMESTAMP_KEY = 'liff_token_verified_at'
+const VERIFICATION_CACHE_DURATION = 5 * 60 * 1000 // 5分間キャッシュ
+
 export function LiffProvider({ children }: { children: ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -60,12 +65,30 @@ export function LiffProvider({ children }: { children: ReactNode }) {
         setUserRole(role)
         
         if (liff.isLoggedIn()) {
-          // アクセストークンを取得してバックエンドで検証
-          const accessToken = liff.getAccessToken()
-          await verifyLiffToken(accessToken, role)
+          // トークン検証のキャッシュをチェック
+          const shouldVerify = shouldVerifyToken()
+          
+          if (shouldVerify) {
+            // アクセストークンを取得してバックエンドで検証
+            const accessToken = liff.getAccessToken()
+            await verifyLiffToken(accessToken, role)
+            
+            // 検証成功時にキャッシュを保存
+            if (typeof window !== 'undefined') {
+              sessionStorage.setItem(VERIFICATION_CACHE_KEY, 'true')
+              sessionStorage.setItem(VERIFICATION_TIMESTAMP_KEY, Date.now().toString())
+            }
+          } else {
+            console.log('Token verification skipped (cached)')
+          }
         }
       } catch (error) {
         console.error('LIFF initialization failed:', error)
+        // エラー時はキャッシュをクリア
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem(VERIFICATION_CACHE_KEY)
+          sessionStorage.removeItem(VERIFICATION_TIMESTAMP_KEY)
+        }
       }
     }
     
@@ -81,8 +104,20 @@ export function LiffProvider({ children }: { children: ReactNode }) {
     if (!liff.isLoggedIn()) {
       liff.login()
     } else {
-      const accessToken = liff.getAccessToken()
-      await verifyLiffToken(accessToken, userRole || 'JOB_SEEKER')
+      // トークン検証のキャッシュをチェック
+      const shouldVerify = shouldVerifyToken()
+      
+      if (shouldVerify) {
+        const accessToken = liff.getAccessToken()
+        await verifyLiffToken(accessToken, userRole || 'JOB_SEEKER')
+        
+        // 検証成功時にキャッシュを保存
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(VERIFICATION_CACHE_KEY, 'true')
+          sessionStorage.setItem(VERIFICATION_TIMESTAMP_KEY, Date.now().toString())
+        }
+      }
+      
       setIsLoggedIn(true)
     }
   }
@@ -140,10 +175,37 @@ export function useLiff() {
   return context
 }
 
+// トークン検証が必要かどうかを判定
+function shouldVerifyToken(): boolean {
+  if (typeof window === 'undefined') return true
+  
+  const verified = sessionStorage.getItem(VERIFICATION_CACHE_KEY)
+  const timestamp = sessionStorage.getItem(VERIFICATION_TIMESTAMP_KEY)
+  
+  // キャッシュがない場合は検証が必要
+  if (!verified || !timestamp) return true
+  
+  // キャッシュの有効期限をチェック
+  const now = Date.now()
+  const verifiedAt = parseInt(timestamp, 10)
+  const elapsed = now - verifiedAt
+  
+  // 有効期限切れの場合は検証が必要
+  if (elapsed > VERIFICATION_CACHE_DURATION) {
+    sessionStorage.removeItem(VERIFICATION_CACHE_KEY)
+    sessionStorage.removeItem(VERIFICATION_TIMESTAMP_KEY)
+    return true
+  }
+  
+  // キャッシュが有効な場合は検証をスキップ
+  return false
+}
+
 async function verifyLiffToken(accessToken: string | null, role: 'JOB_SEEKER' | 'EMPLOYER') {
   if (!accessToken) return
   
   try {
+    console.log('Verifying LIFF token...')
     const response = await fetch('/api/auth/liff/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -153,6 +215,7 @@ async function verifyLiffToken(accessToken: string | null, role: 'JOB_SEEKER' | 
     if (!response.ok) {
       throw new Error('LIFF token verification failed')
     }
+    console.log('LIFF token verified successfully')
   } catch (error) {
     console.error('LIFF token verification error:', error)
     throw error

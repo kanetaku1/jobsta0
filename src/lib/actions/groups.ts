@@ -121,8 +121,8 @@ export async function createGroup(
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.GROUPS)
-    revalidateTag(`${CACHE_TAGS.GROUPS}:${user.id}`)
+    revalidateTag(CACHE_TAGS.GROUPS, {})
+    revalidateTag(`${CACHE_TAGS.GROUPS}:${user.id}`, {})
 
     return transformGroupToAppFormat(group)
   } catch (error) {
@@ -270,9 +270,9 @@ export async function updateGroupMemberStatus(
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.GROUPS)
-    revalidateTag(`${CACHE_TAGS.GROUPS}:${user.id}`)
-    revalidateTag(`group:${groupId}`)
+    revalidateTag(CACHE_TAGS.GROUPS, {})
+    revalidateTag(`${CACHE_TAGS.GROUPS}:${user.id}`, {})
+    revalidateTag(`group:${groupId}`, {})
 
     return true
   } catch (error) {
@@ -328,8 +328,8 @@ export async function addMemberToGroup(
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.GROUPS)
-    revalidateTag(`group:${groupId}`)
+    revalidateTag(CACHE_TAGS.GROUPS, {})
+    revalidateTag(`group:${groupId}`, {})
 
     return { success: true, memberId: member.id }
   } catch (error) {
@@ -394,9 +394,9 @@ export async function updateGroupMemberApplicationStatus(
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.GROUPS)
-    revalidateTag(`${CACHE_TAGS.GROUPS}:${user.id}`)
-    revalidateTag(`group:${groupId}`)
+    revalidateTag(CACHE_TAGS.GROUPS, {})
+    revalidateTag(`${CACHE_TAGS.GROUPS}:${user.id}`, {})
+    revalidateTag(`group:${groupId}`, {})
 
     return true
   } catch (error) {

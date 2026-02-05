@@ -8,14 +8,8 @@ import { CategoryBadge } from '@/components/jobs/CategoryBadge'
 import { JobCategory } from '@/types/job'
 
 export default async function EmployerJobsPage() {
-  let employer
-  try {
-    employer = await requireEmployer()
-  } catch (error) {
-    redirect('/employer')
-  }
-
-  const jobs = await getEmployerJobs()
+  // getEmployerJobs()内でrequireEmployer()が呼ばれるため、ここでは不要
+  const { jobs, employer } = await getEmployerJobs()
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -32,11 +26,13 @@ export default async function EmployerJobsPage() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-4">
-          <p className="text-gray-600">
-            ログイン中: {employer.name || employer.email}
-          </p>
-        </div>
+        {employer && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-4">
+            <p className="text-gray-600">
+              ログイン中: {employer.name || employer.email}
+            </p>
+          </div>
+        )}
 
         {jobs.length === 0 ? (
           <div className="bg-white rounded-lg shadow-lg p-8 text-center">

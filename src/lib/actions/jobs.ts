@@ -148,7 +148,7 @@ export async function createJob(input: CreateJobInput) {
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.JOBS)
+    revalidateTag(CACHE_TAGS.JOBS, {})
 
     return {
       success: true,
@@ -272,13 +272,20 @@ export async function getEmployerJobs() {
       },
     })
 
-    return jobs.map((job) => transformJobToEmployerFormat(job))
+    return {
+      jobs: jobs.map((job) => transformJobToEmployerFormat(job)),
+      employer: {
+        id: employer.id,
+        name: employer.name,
+        email: employer.email,
+      }
+    }
   } catch (error) {
     return handleDataFetchError(error, {
       context: 'job',
       operation: 'getEmployerJobs',
       defaultErrorMessage: '求人一覧の取得に失敗しました',
-    }, [])
+    }, { jobs: [], employer: null })
   }
 }
 
@@ -395,8 +402,8 @@ export async function updateJob(jobId: string, input: UpdateJobInput) {
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.JOBS)
-    revalidateTag(`job:${jobId}`)
+    revalidateTag(CACHE_TAGS.JOBS, {})
+    revalidateTag(`job:${jobId}`, {})
 
     return {
       success: true,
@@ -456,8 +463,8 @@ export async function deleteJob(jobId: string) {
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.JOBS)
-    revalidateTag(`job:${jobId}`)
+    revalidateTag(CACHE_TAGS.JOBS, {})
+    revalidateTag(`job:${jobId}`, {})
 
     return {
       success: true,

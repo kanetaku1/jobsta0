@@ -167,8 +167,8 @@ export async function addFriend(
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.FRIENDS)
-    revalidateTag(`${CACHE_TAGS.FRIENDS}:${user.id}`)
+    revalidateTag(CACHE_TAGS.FRIENDS, {})
+    revalidateTag(`${CACHE_TAGS.FRIENDS}:${user.id}`, {})
 
     return {
       id: newFriend.friendUserId || newFriend.id,
@@ -281,9 +281,9 @@ export async function addFriendByUserId(
 
     // キャッシュを無効化（両方のユーザー）
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.FRIENDS)
-    revalidateTag(`${CACHE_TAGS.FRIENDS}:${invitedUser.id}`)
-    revalidateTag(`${CACHE_TAGS.FRIENDS}:${inviterUser.id}`)
+    revalidateTag(CACHE_TAGS.FRIENDS, {})
+    revalidateTag(`${CACHE_TAGS.FRIENDS}:${invitedUser.id}`, {})
+    revalidateTag(`${CACHE_TAGS.FRIENDS}:${inviterUser.id}`, {})
 
     return {
       id: newFriend1.friendUserId || newFriend1.id,
@@ -320,8 +320,8 @@ export async function removeFriend(friendId: string): Promise<boolean> {
     // キャッシュを無効化
     if (result.count > 0) {
       const { revalidateTag } = await import('next/cache')
-      revalidateTag(CACHE_TAGS.FRIENDS)
-      revalidateTag(`${CACHE_TAGS.FRIENDS}:${user.id}`)
+      revalidateTag(CACHE_TAGS.FRIENDS, {})
+      revalidateTag(`${CACHE_TAGS.FRIENDS}:${user.id}`, {})
     }
 
     return result.count > 0

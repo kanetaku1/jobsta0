@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -35,6 +35,11 @@ export function EditJobForm({ job }: EditJobFormProps) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [hasDraft, setHasDraft] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+
+  const DRAFT_STORAGE_KEY = `jobsta_edit_job_draft_${job.id}`
 
   // 初期ファイル
   const initialFiles: UploadedFile[] = job.attachment_urls
@@ -48,7 +53,7 @@ export function EditJobForm({ job }: EditJobFormProps) {
 
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>(initialFiles)
 
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     category: (job.category as JobCategory) || JobCategory.ONE_TIME_JOB,
     title: job.title || '',
     summary: job.summary || '',
@@ -71,7 +76,86 @@ export function EditJobForm({ job }: EditJobFormProps) {
     isFlexibleSchedule: job.is_flexible_schedule || false,
     externalUrl: job.external_url || '',
     externalUrlTitle: job.external_url_title || '',
-  })
+  }
+
+  const [formData, setFormData] = useState(initialFormData)
+
+  // 初回マウント時に下書きを読み込む
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft)
+          setFormData(parsed.formData)
+          setUploadedFiles(parsed.uploadedFiles || initialFiles)
+          setHasDraft(true)
+          toast({
+            title: '下書きを復元しました',
+            description: '前回の編集内容を読み込みました',
+          })
+        } catch (error) {
+          console.error('Failed to load draft:', error)
+        }
+      }
+    }
+  }, [])
+
+  // フォームデータが変更されたら自動保存 & 変更検知
+  useEffect(() => {
+    // 初期値と異なる場合は変更フラグを立てる
+    const hasChanged = 
+      formData.title !== initialFormData.title ||
+      formData.summary !== initialFormData.summary ||
+      formData.companyName !== initialFormData.companyName ||
+      formData.jobContent !== initialFormData.jobContent ||
+      formData.location !== initialFormData.location ||
+      formData.workHours !== initialFormData.workHours ||
+      formData.compensationAmount !== initialFormData.compensationAmount ||
+      formData.recruitmentCount !== initialFormData.recruitmentCount
+    
+    setHasUnsavedChanges(hasChanged)
+
+    if (typeof window !== 'undefined' && hasChanged) {
+      setSaveStatus('saving')
+      const timer = setTimeout(() => {
+        const draft = {
+          formData,
+          uploadedFiles,
+          savedAt: new Date().toISOString(),
+        }
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+        setSaveStatus('saved')
+        
+        // 「保存済み」表示を2秒後に消す
+        setTimeout(() => setSaveStatus('idle'), 2000)
+      }, 1000)
+
+      return () => clearTimeout(timer)
+    }
+  }, [formData, uploadedFiles, DRAFT_STORAGE_KEY])
+
+  // ページ離脱時の警告
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges && !loading && !deleting) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges, loading, deleting])
+
+  // 下書きをクリア
+  const clearDraft = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(DRAFT_STORAGE_KEY)
+      setHasDraft(false)
+      setHasUnsavedChanges(false)
+    }
+  }
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -158,11 +242,17 @@ export function EditJobForm({ job }: EditJobFormProps) {
       const result = await updateJob(job.id, updateJobData)
 
       if (result.success) {
+        // 更新成功時に下書きをクリア & 変更フラグをリセット
+        clearDraft()
         toast({
           title: '求人を更新しました',
           description: '求人情報を更新しました',
         })
-        router.push('/employer/jobs')
+        // 離脱警告を無効化してからリダイレクト
+        setHasUnsavedChanges(false)
+        setTimeout(() => {
+          router.push('/employer/jobs')
+        }, 100)
       } else {
         throw new Error('error' in result ? result.error : '求人の更新に失敗しました')
       }
@@ -188,11 +278,17 @@ export function EditJobForm({ job }: EditJobFormProps) {
       const result = await deleteJob(job.id)
 
       if (result.success) {
+        // 削除成功時に下書きをクリア & 変更フラグをリセット
+        clearDraft()
         toast({
           title: '求人を削除しました',
           description: '求人を削除しました',
         })
-        router.push('/employer/jobs')
+        // 離脱警告を無効化してからリダイレクト
+        setHasUnsavedChanges(false)
+        setTimeout(() => {
+          router.push('/employer/jobs')
+        }, 100)
       } else {
         throw new Error('error' in result ? result.error : '求人の削除に失敗しました')
       }
@@ -211,6 +307,50 @@ export function EditJobForm({ job }: EditJobFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* 自動保存ステータス */}
+      {hasUnsavedChanges && (
+        <div className="fixed top-4 right-4 z-50 bg-white shadow-lg rounded-lg px-4 py-2 border border-gray-200 flex items-center gap-2">
+          {saveStatus === 'saving' && (
+            <>
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-gray-700">保存中...</span>
+            </>
+          )}
+          {saveStatus === 'saved' && (
+            <>
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm text-gray-700">✓ 保存済み</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 下書き復元通知 */}
+      {hasDraft && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start justify-between">
+          <div className="flex-1">
+            <h3 className="font-semibold text-blue-900 mb-1">💾 下書きから復元しました</h3>
+            <p className="text-sm text-blue-800">
+              前回の編集内容を読み込みました。このフォームは自動保存されます。
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (confirm('下書きをクリアして元のデータに戻しますか？')) {
+                clearDraft()
+                window.location.reload()
+              }
+            }}
+            className="text-blue-700 hover:text-blue-900"
+          >
+            クリア
+          </Button>
+        </div>
+      )}
+
       {/* カテゴリ選択 */}
       <div>
         <Label htmlFor="category" className="text-base font-semibold">

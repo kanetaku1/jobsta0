@@ -141,11 +141,11 @@ export async function createApplication(
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.APPLICATIONS)
-    revalidateTag(`${CACHE_TAGS.APPLICATIONS}:${user.id}`)
+    revalidateTag(CACHE_TAGS.APPLICATIONS, {})
+    revalidateTag(`${CACHE_TAGS.APPLICATIONS}:${user.id}`, {})
     if (finalGroupId) {
-      revalidateTag(CACHE_TAGS.GROUPS)
-      revalidateTag(`group:${finalGroupId}`)
+      revalidateTag(CACHE_TAGS.GROUPS, {})
+      revalidateTag(`group:${finalGroupId}`, {})
     }
 
     return {
@@ -199,8 +199,8 @@ export async function updateApplicationStatus(
 
     // キャッシュを無効化
     const { revalidateTag } = await import('next/cache')
-    revalidateTag(CACHE_TAGS.APPLICATIONS)
-    revalidateTag(`${CACHE_TAGS.APPLICATIONS}:${user.id}`)
+    revalidateTag(CACHE_TAGS.APPLICATIONS, {})
+    revalidateTag(`${CACHE_TAGS.APPLICATIONS}:${user.id}`, {})
 
     return true
   } catch (error) {

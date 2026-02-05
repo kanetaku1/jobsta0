@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,12 +25,18 @@ type UploadedFile = {
   fileSize: number
 }
 
+const DRAFT_STORAGE_KEY = 'jobsta_create_job_draft'
+
 export function CreateJobForm() {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [dates, setDates] = useState<string[]>([''])
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [hasDraft, setHasDraft] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const [formData, setFormData] = useState({
     category: JobCategory.ONE_TIME_JOB,
@@ -54,8 +60,101 @@ export function CreateJobForm() {
     externalUrlTitle: '',
   })
 
+  // 初回マウント時に下書きを読み込む
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft)
+          setFormData(parsed.formData)
+          setDates(parsed.dates || [''])
+          setUploadedFiles(parsed.uploadedFiles || [])
+          setHasDraft(true)
+          toast({
+            title: '下書きを復元しました',
+            description: '前回の入力内容を読み込みました',
+          })
+        } catch (error) {
+          console.error('Failed to load draft:', error)
+        }
+      }
+    }
+  }, [])
+
+  // フォームデータが変更されたら自動保存 & 変更フラグを立てる
+  useEffect(() => {
+    // 何か入力されている場合は変更フラグを立てる
+    const hasContent = !!(formData.title || formData.summary || formData.companyName || 
+                       formData.jobContent || formData.location)
+    setHasUnsavedChanges(hasContent)
+
+    if (typeof window !== 'undefined' && hasContent) {
+      setSaveStatus('saving')
+      const timer = setTimeout(() => {
+        const draft = {
+          formData,
+          dates,
+          uploadedFiles,
+          savedAt: new Date().toISOString(),
+        }
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft))
+        setSaveStatus('saved')
+        
+        // 「保存済み」表示を2秒後に消す
+        setTimeout(() => setSaveStatus('idle'), 2000)
+      }, 1000) // 1秒後に保存（入力中の負荷を軽減）
+
+      return () => clearTimeout(timer)
+    }
+  }, [formData, dates, uploadedFiles])
+
+  // ページ離脱時の警告（ブラウザの標準ダイアログ）
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges && !loading) {
+        e.preventDefault()
+        e.returnValue = '' // Chrome requires returnValue to be set
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges, loading])
+
+  // Next.js Router のページ遷移時の警告
+  useEffect(() => {
+    const handleRouteChange = () => {
+      if (hasUnsavedChanges && !loading) {
+        const confirmLeave = window.confirm(
+          '入力中の内容が保存されていません。\n下書きとして自動保存されていますが、このページを離れてもよろしいですか？'
+        )
+        if (!confirmLeave) {
+          throw 'Route change aborted by user'
+        }
+      }
+    }
+
+    // Note: Next.js App Router では router events が異なるため、
+    // beforeunload イベントで対応します
+    // 将来的に navigation API を使用することも検討
+
+    return () => {
+      // cleanup
+    }
+  }, [hasUnsavedChanges, loading])
+
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  // 下書きをクリア
+  const clearDraft = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(DRAFT_STORAGE_KEY)
+      setHasDraft(false)
+      setHasUnsavedChanges(false)
+    }
   }
 
   const handleCategoryChange = (value: string) => {
@@ -120,8 +219,13 @@ export function CreateJobForm() {
 
       const validationResult = validateCreateJobForm(validationData)
       if (!validationResult.isValid) {
+        // フィールドエラーをstateに保存
+        setFieldErrors(validationResult.fieldErrors || {})
         throw new Error(validationResult.error)
       }
+      
+      // バリデーション成功時はエラーをクリア
+      setFieldErrors({})
 
       // 求人作成データ
       const createJobData: any = {
@@ -160,11 +264,17 @@ export function CreateJobForm() {
       const result = await createJob(createJobData)
 
       if (result.success && result.jobs.length > 0) {
+        // 作成成功時に下書きをクリア & 変更フラグをリセット
+        clearDraft()
         toast({
           title: '求人を作成しました',
           description: `${result.jobs.length}件の求人を作成しました`,
         })
-        router.push('/employer/jobs')
+        // 離脱警告を無効化してからリダイレクト
+        setHasUnsavedChanges(false)
+        setTimeout(() => {
+          router.push('/employer/jobs')
+        }, 100)
       } else {
         throw new Error((result as any).error || '求人の作成に失敗しました')
       }
@@ -184,6 +294,50 @@ export function CreateJobForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* 自動保存ステータス */}
+      {hasUnsavedChanges && (
+        <div className="fixed top-4 right-4 z-50 bg-white shadow-lg rounded-lg px-4 py-2 border border-gray-200 flex items-center gap-2">
+          {saveStatus === 'saving' && (
+            <>
+              <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+              <span className="text-sm text-gray-700">保存中...</span>
+            </>
+          )}
+          {saveStatus === 'saved' && (
+            <>
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm text-gray-700">✓ 保存済み</span>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 下書き復元通知 */}
+      {hasDraft && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start justify-between">
+          <div className="flex-1">
+            <h3 className="font-semibold text-blue-900 mb-1">💾 下書きから復元しました</h3>
+            <p className="text-sm text-blue-800">
+              前回の入力内容を読み込みました。このフォームは自動保存されます。
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              if (confirm('下書きをクリアして最初から入力しますか？')) {
+                clearDraft()
+                window.location.reload()
+              }
+            }}
+            className="text-blue-700 hover:text-blue-900"
+          >
+            クリア
+          </Button>
+        </div>
+      )}
+
       {/* カテゴリ選択 */}
       <div>
         <Label htmlFor="category" className="text-base font-semibold">
@@ -215,8 +369,11 @@ export function CreateJobForm() {
           onChange={(e) => handleInputChange('companyName', e.target.value)}
           placeholder="例：株式会社〇〇"
           required
-          className="mt-2"
+          className={`mt-2 ${fieldErrors.companyName ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
         />
+        {fieldErrors.companyName && (
+          <p className="mt-1 text-sm text-red-600">{fieldErrors.companyName}</p>
+        )}
       </div>
 
       {/* 求人のタイトル */}
@@ -231,8 +388,11 @@ export function CreateJobForm() {
           onChange={(e) => handleInputChange('title', e.target.value)}
           placeholder="例：イベントスタッフ募集"
           required
-          className="mt-2"
+          className={`mt-2 ${fieldErrors.title ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
         />
+        {fieldErrors.title && (
+          <p className="mt-1 text-sm text-red-600">{fieldErrors.title}</p>
+        )}
       </div>
 
       {/* サマリー */}
@@ -247,11 +407,22 @@ export function CreateJobForm() {
           placeholder="求人の要約を100〜200文字で入力してください"
           required
           rows={3}
-          className="mt-2 flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className={`mt-2 flex w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+            fieldErrors.summary 
+              ? 'border-red-500 focus-visible:ring-red-500' 
+              : 'border-input focus-visible:ring-ring'
+          }`}
         />
-        <p className="mt-1 text-xs text-gray-500">
-          {formData.summary.length}/200文字
-        </p>
+        <div className="flex justify-between items-center mt-1">
+          <div>
+            {fieldErrors.summary && (
+              <p className="text-sm text-red-600">{fieldErrors.summary}</p>
+            )}
+          </div>
+          <p className={`text-xs ${formData.summary.length < 100 || formData.summary.length > 200 ? 'text-red-500' : 'text-gray-500'}`}>
+            {formData.summary.length}/200文字
+          </p>
+        </div>
       </div>
 
       {/* 日付（カテゴリ別） */}
@@ -269,7 +440,7 @@ export function CreateJobForm() {
                   value={date}
                   onChange={(e) => handleDateChange(index, e.target.value)}
                   required={index === 0}
-                  className="flex-1"
+                  className={`flex-1 ${fieldErrors.dates && index === 0 ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
                 />
                 {dates.length > 1 && (
                   <Button
@@ -292,6 +463,9 @@ export function CreateJobForm() {
               + 日付を追加
             </Button>
           </div>
+          {fieldErrors.dates && (
+            <p className="mt-1 text-sm text-red-600">{fieldErrors.dates}</p>
+          )}
         </div>
       )}
 
@@ -308,8 +482,11 @@ export function CreateJobForm() {
               value={formData.startDate}
               onChange={(e) => handleInputChange('startDate', e.target.value)}
               required
-              className="mt-2"
+              className={`mt-2 ${fieldErrors.startDate ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
             />
+            {fieldErrors.startDate && (
+              <p className="mt-1 text-sm text-red-600">{fieldErrors.startDate}</p>
+            )}
           </div>
 
           <div>
@@ -322,9 +499,12 @@ export function CreateJobForm() {
               value={formData.endDate}
               onChange={(e) => handleInputChange('endDate', e.target.value)}
               required={formData.category === JobCategory.INTERNSHIP}
-              className="mt-2"
+              className={`mt-2 ${fieldErrors.endDate ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
             />
-            {formData.category === JobCategory.PART_TIME && (
+            {fieldErrors.endDate && (
+              <p className="mt-1 text-sm text-red-600">{fieldErrors.endDate}</p>
+            )}
+            {formData.category === JobCategory.PART_TIME && !fieldErrors.endDate && (
               <p className="mt-1 text-xs text-gray-500">
                 終了日が未定の場合は空欄可
               </p>
@@ -361,8 +541,11 @@ export function CreateJobForm() {
           onChange={(e) => handleInputChange('workHours', e.target.value)}
           placeholder="例：9:00～18:00 (昼休憩60分)"
           required
-          className="mt-2"
+          className={`mt-2 ${fieldErrors.workHours ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
         />
+        {fieldErrors.workHours && (
+          <p className="mt-1 text-sm text-red-600">{fieldErrors.workHours}</p>
+        )}
       </div>
 
       {/* 報酬形式 */}
@@ -401,8 +584,11 @@ export function CreateJobForm() {
             onChange={(e) => handleInputChange('compensationAmount', e.target.value)}
             placeholder="例：1200"
             required
-            className="mt-2"
+            className={`mt-2 ${fieldErrors.compensationAmount ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
           />
+          {fieldErrors.compensationAmount && (
+            <p className="mt-1 text-sm text-red-600">{fieldErrors.compensationAmount}</p>
+          )}
         </div>
       )}
 
@@ -419,8 +605,11 @@ export function CreateJobForm() {
           onChange={(e) => handleInputChange('location', e.target.value)}
           placeholder="例：東京都渋谷区〇〇1-2-3"
           required
-          className="mt-2"
+          className={`mt-2 ${fieldErrors.location ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
         />
+        {fieldErrors.location && (
+          <p className="mt-1 text-sm text-red-600">{fieldErrors.location}</p>
+        )}
       </div>
 
       {/* 募集人数 */}
@@ -436,8 +625,11 @@ export function CreateJobForm() {
           onChange={(e) => handleInputChange('recruitmentCount', e.target.value)}
           placeholder="例：2"
           required
-          className="mt-2"
+          className={`mt-2 ${fieldErrors.recruitmentCount ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
         />
+        {fieldErrors.recruitmentCount && (
+          <p className="mt-1 text-sm text-red-600">{fieldErrors.recruitmentCount}</p>
+        )}
       </div>
 
       {/* 業務内容 */}
@@ -453,8 +645,15 @@ export function CreateJobForm() {
           placeholder="詳細な業務内容を記載してください"
           required
           rows={6}
-          className="mt-2 flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+          className={`mt-2 flex w-full rounded-md border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+            fieldErrors.jobContent 
+              ? 'border-red-500 focus-visible:ring-red-500' 
+              : 'border-input focus-visible:ring-ring'
+          }`}
         />
+        {fieldErrors.jobContent && (
+          <p className="mt-1 text-sm text-red-600">{fieldErrors.jobContent}</p>
+        )}
       </div>
 
       {/* 応募資格・条件 */}
@@ -513,8 +712,11 @@ export function CreateJobForm() {
           value={formData.externalUrl}
           onChange={(e) => handleInputChange('externalUrl', e.target.value)}
           placeholder="https://example.com/job"
-          className="mt-2"
+          className={`mt-2 ${fieldErrors.externalUrl ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
         />
+        {fieldErrors.externalUrl && (
+          <p className="mt-1 text-sm text-red-600">{fieldErrors.externalUrl}</p>
+        )}
         {formData.externalUrl && (
           <div className="mt-2">
             <Label htmlFor="externalUrlTitle" className="text-sm font-medium">
@@ -527,8 +729,11 @@ export function CreateJobForm() {
               onChange={(e) => handleInputChange('externalUrlTitle', e.target.value)}
               placeholder="例：詳細はこちら"
               required={!!formData.externalUrl}
-              className="mt-1"
+              className={`mt-1 ${fieldErrors.externalUrlTitle ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
             />
+            {fieldErrors.externalUrlTitle && (
+              <p className="mt-1 text-sm text-red-600">{fieldErrors.externalUrlTitle}</p>
+            )}
           </div>
         )}
       </div>
